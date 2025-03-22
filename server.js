@@ -10,6 +10,8 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
+require("dotenv").config();
+
 
 const PORT = process.env.PORT || 5000;
 const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
