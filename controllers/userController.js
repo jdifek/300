@@ -1,6 +1,6 @@
 // controllers/userController.js (без изменений в логике, только структура)
 const User = require('../models/User');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const generateTokens = (userId) => {
@@ -14,14 +14,14 @@ exports.register = async (req, res) => {
     const { username, email, password } = req.body;
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: 'Email already exists' });
-    
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ username, email, password: hashedPassword });
-    
+
     const { accessToken, refreshToken } = generateTokens(user._id);
     user.refreshToken = refreshToken;
     await user.save();
-    
+
     res.status(201).json({ accessToken, refreshToken, userId: user._id });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -113,7 +113,7 @@ exports.getProgress = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    
+
     const progress = Math.min(((user.stats.ticketsCompleted * 2 + user.stats.lessonsCompleted) / 100) * 100, 100);
     await User.findByIdAndUpdate(req.user.id, { progress });
     res.json({ progress });
