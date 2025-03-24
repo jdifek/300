@@ -85,3 +85,32 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.updateSubscription = async (req, res) => {
+  try {
+    const { type, autoRenew } = req.body;
+    const expiresAt = type === 'premium' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { subscription: { type, expiresAt, autoRenew } },
+      { new: true }
+    ).select('-password -refreshToken');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getProgress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const progress = Math.min(((user.stats.ticketsCompleted * 2 + user.stats.lessonsCompleted) / 100) * 100, 100);
+    await User.findByIdAndUpdate(req.user.id, { progress });
+    res.json({ progress });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
