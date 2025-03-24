@@ -15,54 +15,9 @@ const { isAuthenticated } = require('../middleware/auth');
 
 /**
  * @swagger
- * /api/users/register:
- *   post:
- *     summary: Register a new user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               username: { type: string }
- *               email: { type: string }
- *               password: { type: string }
- *     responses:
- *       201: { description: User created }
- *       400: { description: Email already exists }
- *       500: { description: Server error }
- */
-router.post('/register', userController.register);
-
-/**
- * @swagger
- * /api/users/login:
- *   post:
- *     summary: Login user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email: { type: string }
- *               password: { type: string }
- *     responses:
- *       200: { description: Successful login }
- *       401: { description: Invalid credentials }
- *       500: { description: Server error }
- */
-router.post('/login', userController.login);
-
-/**
- * @swagger
  * /api/users/telegram-login:
  *   post:
- *     summary: Login or register user via Telegram
+ *     summary: Вход или регистрация пользователя через Telegram
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -71,13 +26,13 @@ router.post('/login', userController.login);
  *           schema:
  *             type: object
  *             properties:
- *               telegramId: { type: string }
- *               username: { type: string }
- *               avatar: { type: string }
+ *               telegramId: { type: string, description: "ID пользователя в Telegram" }
+ *               username: { type: string, description: "Имя пользователя" }
+ *               avatar: { type: string, description: "URL аватара (опционально)" }
  *     responses:
- *       200: { description: Successful login/registration }
- *       400: { description: Missing required fields }
- *       500: { description: Server error }
+ *       200: { description: "Успешный вход или регистрация" }
+ *       400: { description: "Отсутствуют обязательные поля" }
+ *       500: { description: "Ошибка сервера" }
  */
 router.post('/telegram-login', userController.telegramLogin);
 
@@ -85,7 +40,7 @@ router.post('/telegram-login', userController.telegramLogin);
  * @swagger
  * /api/users/refresh:
  *   post:
- *     summary: Refresh access token
+ *     summary: Обновление access-токена
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -94,10 +49,10 @@ router.post('/telegram-login', userController.telegramLogin);
  *           schema:
  *             type: object
  *             properties:
- *               refreshToken: { type: string }
+ *               refreshToken: { type: string, description: "Refresh-токен" }
  *     responses:
- *       200: { description: New tokens generated }
- *       401: { description: Invalid refresh token }
+ *       200: { description: "Новые токены сгенерированы" }
+ *       401: { description: "Недействительный refresh-токен" }
  */
 router.post('/refresh', userController.refreshToken);
 
@@ -105,15 +60,15 @@ router.post('/refresh', userController.refreshToken);
  * @swagger
  * /api/users/profile:
  *   get:
- *     summary: Get user profile
+ *     summary: Получение профиля пользователя
  *     tags: [User]
  *     security:
  *       - bearerAuth: []
  *     responses:
- *       200: { description: User profile }
- *       401: { description: Unauthorized }
- *       404: { description: User not found }
- *       500: { description: Server error }
+ *       200: { description: "Профиль пользователя" }
+ *       401: { description: "Неавторизован" }
+ *       404: { description: "Пользователь не найден" }
+ *       500: { description: "Ошибка сервера" }
  */
 router.get('/profile', isAuthenticated, userController.getProfile);
 
@@ -121,7 +76,7 @@ router.get('/profile', isAuthenticated, userController.getProfile);
  * @swagger
  * /api/users/profile:
  *   put:
- *     summary: Update user profile
+ *     summary: Обновление профиля пользователя
  *     tags: [User]
  *     security:
  *       - bearerAuth: []
@@ -132,13 +87,13 @@ router.get('/profile', isAuthenticated, userController.getProfile);
  *           schema:
  *             type: object
  *             properties:
- *               username: { type: string }
- *               avatar: { type: string }
+ *               username: { type: string, description: "Новое имя пользователя" }
+ *               avatar: { type: string, description: "Новый URL аватара" }
  *     responses:
- *       200: { description: Updated profile }
- *       401: { description: Unauthorized }
- *       404: { description: User not found }
- *       500: { description: Server error }
+ *       200: { description: "Обновленный профиль" }
+ *       401: { description: "Неавторизован" }
+ *       404: { description: "Пользователь не найден" }
+ *       500: { description: "Ошибка сервера" }
  */
 router.put('/profile', isAuthenticated, userController.updateProfile);
 
@@ -146,7 +101,7 @@ router.put('/profile', isAuthenticated, userController.updateProfile);
  * @swagger
  * /api/users/subscription:
  *   put:
- *     summary: Update user subscription
+ *     summary: Обновление подписки пользователя
  *     tags: [User]
  *     security:
  *       - bearerAuth: []
@@ -157,13 +112,13 @@ router.put('/profile', isAuthenticated, userController.updateProfile);
  *           schema:
  *             type: object
  *             properties:
- *               type: { type: string, enum: [free, premium] }
- *               autoRenew: { type: boolean }
+ *               type: { type: string, enum: ["free", "premium"], description: "Тип подписки" }
+ *               autoRenew: { type: boolean, description: "Автопродление подписки" }
  *     responses:
- *       200: { description: Updated subscription }
- *       401: { description: Unauthorized }
- *       404: { description: User not found }
- *       500: { description: Server error }
+ *       200: { description: "Обновленная подписка" }
+ *       401: { description: "Неавторизован" }
+ *       404: { description: "Пользователь не найден" }
+ *       500: { description: "Ошибка сервера" }
  */
 router.put('/subscription', isAuthenticated, userController.updateSubscription);
 
@@ -171,15 +126,15 @@ router.put('/subscription', isAuthenticated, userController.updateSubscription);
  * @swagger
  * /api/users/progress:
  *   get:
- *     summary: Get user progress
+ *     summary: Получение прогресса пользователя
  *     tags: [User]
  *     security:
  *       - bearerAuth: []
  *     responses:
- *       200: { description: User progress }
- *       401: { description: Unauthorized }
- *       404: { description: User not found }
- *       500: { description: Server error }
+ *       200: { description: "Прогресс пользователя" }
+ *       401: { description: "Неавторизован" }
+ *       404: { description: "Пользователь не найден" }
+ *       500: { description: "Ошибка сервера" }
  */
 router.get('/progress', isAuthenticated, userController.getProgress);
 

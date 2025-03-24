@@ -6,23 +6,11 @@ const UserSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  email: {
-    type: String,
-    unique: true,
-    required: function() {
-      return !this.telegramId; // Email обязателен, только если нет telegramId
-    }
-  },
-  password: {
-    type: String,
-    required: function() {
-      return !this.telegramId; // Пароль обязателен, только если нет telegramId
-    }
-  },
   telegramId: {
     type: String,
+    required: true, // Now required since it's the only auth method
     unique: true,
-    sparse: true // Позволяет null значения для уникального индекса
+    sparse: true
   },
   avatar: {
     type: String,
