@@ -1,4 +1,3 @@
-// routes/userRoutes.js - с добавлением Swagger-документации
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
@@ -58,6 +57,29 @@ router.post('/register', userController.register);
  *       500: { description: Server error }
  */
 router.post('/login', userController.login);
+
+/**
+ * @swagger
+ * /api/users/telegram-login:
+ *   post:
+ *     summary: Login or register user via Telegram
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               telegramId: { type: string }
+ *               username: { type: string }
+ *               avatar: { type: string }
+ *     responses:
+ *       200: { description: Successful login/registration }
+ *       400: { description: Missing required fields }
+ *       500: { description: Server error }
+ */
+router.post('/telegram-login', userController.telegramLogin);
 
 /**
  * @swagger

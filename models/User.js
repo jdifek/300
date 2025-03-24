@@ -1,4 +1,3 @@
-// models/User.js
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
@@ -9,12 +8,21 @@ const UserSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
-    unique: true
+    unique: true,
+    required: function() {
+      return !this.telegramId; // Email обязателен, только если нет telegramId
+    }
   },
   password: {
     type: String,
-    required: true
+    required: function() {
+      return !this.telegramId; // Пароль обязателен, только если нет telegramId
+    }
+  },
+  telegramId: {
+    type: String,
+    unique: true,
+    sparse: true // Позволяет null значения для уникального индекса
   },
   avatar: {
     type: String,
