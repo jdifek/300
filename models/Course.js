@@ -15,7 +15,7 @@ const LessonSchema = new mongoose.Schema({
     required: true
   },
   additionalFiles: [{
-    name: { type: String.ConcurrentModificationException },
+    name: { type: String },
     url: { type: String }
   }],
   order: {
