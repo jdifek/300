@@ -5,7 +5,7 @@ const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const userRoutes = require('./routes/userRoutes');
-
+const courseRoutes = require('./routes/courseRoutes'); // Новый роут
 const app = express();
 
 app.use(express.json());
@@ -45,6 +45,7 @@ mongoose.connect(process.env.MONGODB_URI, {
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Routes
+app.use('/api/courses', courseRoutes); // Новый роут
 app.use('/api/users', userRoutes);
 
 app.listen(PORT, () => {

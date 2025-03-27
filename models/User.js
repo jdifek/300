@@ -1,4 +1,37 @@
+// models/User.js
 const mongoose = require('mongoose');
+
+const LessonProgressSchema = new mongoose.Schema({
+  lessonId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
+  isCompleted: {
+    type: Boolean,
+    default: false
+  },
+  homeworkSubmitted: {
+    type: Boolean,
+    default: false
+  },
+  homeworkData: {
+    type: String, // Можно расширить до объекта для хранения файлов
+    default: null
+  }
+});
+
+const CourseProgressSchema = new mongoose.Schema({
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+    required: true
+  },
+  lastStudiedLesson: {
+    type: mongoose.Schema.Types.ObjectId,
+    default: null
+  },
+  lessons: [LessonProgressSchema]
+});
 
 const UserSchema = new mongoose.Schema({
   username: {
@@ -8,7 +41,7 @@ const UserSchema = new mongoose.Schema({
   },
   telegramId: {
     type: String,
-    required: true, // Now required since it's the only auth method
+    required: true,
     unique: true,
     sparse: true
   },
@@ -31,21 +64,12 @@ const UserSchema = new mongoose.Schema({
       enum: ['free', 'premium'],
       default: 'free'
     },
-    expiresAt: {
-      type: Date
-    },
-    autoRenew: {
-      type: Boolean,
-      default: false
-    }
+    expiresAt: { type: Date },
+    autoRenew: { type: Boolean, default: false }
   },
-  refreshToken: {
-    type: String
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  coursesProgress: [CourseProgressSchema], // Прогресс по курсам
+  refreshToken: { type: String },
+  createdAt: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('User', UserSchema);
