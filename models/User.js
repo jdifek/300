@@ -2,73 +2,37 @@
 const mongoose = require('mongoose');
 
 const LessonProgressSchema = new mongoose.Schema({
-  lessonId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true
-  },
-  isCompleted: {
-    type: Boolean,
-    default: false
-  },
-  homeworkSubmitted: {
-    type: Boolean,
-    default: false
-  },
-  homeworkData: {
-    type: String, // Можно расширить до объекта для хранения файлов
-    default: null
-  }
+  lessonId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  isCompleted: { type: Boolean, default: false },
+  homeworkSubmitted: { type: Boolean, default: false },
+  homeworkData: { type: String, default: null }
 });
 
 const CourseProgressSchema = new mongoose.Schema({
-  courseId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course',
-    required: true
-  },
-  lastStudiedLesson: {
-    type: mongoose.Schema.Types.ObjectId,
-    default: null
-  },
+  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  lastStudiedLesson: { type: mongoose.Schema.Types.ObjectId, default: null },
   lessons: [LessonProgressSchema]
 });
 
 const UserSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  telegramId: {
-    type: String,
-    required: true,
-    unique: true,
-    sparse: true
-  },
-  avatar: {
-    type: String,
-    default: 'default-avatar.png'
-  },
-  progress: {
-    type: Number,
-    default: 0
-  },
+  username: { type: String, required: true, trim: true },
+  telegramId: { type: String, required: true, unique: true, sparse: true },
+  avatar: { type: String, default: 'default-avatar.png' },
+  progress: { type: Number, default: 0 },
   stats: {
     ticketsCompleted: { type: Number, default: 0 },
     lessonsCompleted: { type: Number, default: 0 },
     totalTimeSpent: { type: Number, default: 0 }
   },
   subscription: {
-    type: {
-      type: String,
-      enum: ['free', 'premium'],
-      default: 'free'
-    },
+    type: { type: String, enum: ['free', 'premium'], default: 'free' },
     expiresAt: { type: Date },
     autoRenew: { type: Boolean, default: false }
   },
-  coursesProgress: [CourseProgressSchema], // Прогресс по курсам
+  coursesProgress: [CourseProgressSchema],
   refreshToken: { type: String },
+  firstLogin: { type: Date, default: Date.now }, // Дата первого входа
+  subscribedToChannel: { type: Boolean, default: false }, // Подписан ли на канал
   createdAt: { type: Date, default: Date.now }
 });
 

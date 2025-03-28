@@ -38,6 +38,39 @@ exports.telegramLogin = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+// controllers/userController.js (фрагмент)
+exports.telegramLogin = async (req, res) => {
+  try {
+    const { telegramId, username, avatar } = req.body;
+    if (!telegramId || !username) {
+      return res.status(400).json({ message: 'telegramId and username are required' });
+    }
+
+    let user = await User.findOne({ telegramId });
+    if (!user) {
+      user = new User({
+        telegramId,
+        username,
+        avatar: avatar || 'default-avatar.png',
+        firstLogin: Date.now() // Устанавливаем при первом входе
+      });
+    } else {
+      user.username = username;
+      if (avatar) user.avatar = avatar;
+    }
+
+    const { accessToken, refreshToken } = generateTokens(user._id);
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.json({ accessToken, refreshToken, userId: user._id });
+  } catch (error) {
+    console.error('Telegram login error:', error.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Остальные методы остаются без изменений
 
 exports.refreshToken = async (req, res) => {
   try {

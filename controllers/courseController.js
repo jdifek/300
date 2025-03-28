@@ -4,9 +4,12 @@ const User = require('../models/User');
 
 exports.getCourses = async (req, res) => {
   try {
-    const courses = await Course.find();
     const user = await User.findById(req.user.id);
+    if (user.subscription.type !== 'premium') {
+      return res.status(403).json({ message: 'Premium subscription required' });
+    }
 
+    const courses = await Course.find();
     const coursesWithProgress = courses.map(course => {
       const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
       return {
@@ -26,13 +29,13 @@ exports.getCourses = async (req, res) => {
 
 exports.getCourse = async (req, res) => {
   try {
-    const course = await Course.findById(req.params.courseId);
-    if (!course) return res.status(404).json({ message: 'Course not found' });
-
     const user = await User.findById(req.user.id);
-    if (user.subscription.type === 'free' && course.category !== 'ПДД') {
+    if (user.subscription.type !== 'premium') {
       return res.status(403).json({ message: 'Premium subscription required' });
     }
+
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
 
     let courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
     if (!courseProgress) {
@@ -55,13 +58,13 @@ exports.getCourse = async (req, res) => {
 
 exports.getLesson = async (req, res) => {
   try {
-    const course = await Course.findById(req.params.courseId);
-    if (!course) return res.status(404).json({ message: 'Course not found' });
-
     const user = await User.findById(req.user.id);
-    if (user.subscription.type === 'free' && course.category !== 'ПДД') {
+    if (user.subscription.type !== 'premium') {
       return res.status(403).json({ message: 'Premium subscription required' });
     }
+
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
 
     const lesson = course.lessons.id(req.params.lessonId);
     if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
@@ -80,13 +83,13 @@ exports.getLesson = async (req, res) => {
 
 exports.markLessonCompleted = async (req, res) => {
   try {
-    const course = await Course.findById(req.params.courseId);
-    if (!course) return res.status(404).json({ message: 'Course not found' });
-
     const user = await User.findById(req.user.id);
-    if (user.subscription.type === 'free' && course.category !== 'ПДД') {
+    if (user.subscription.type !== 'premium') {
       return res.status(403).json({ message: 'Premium subscription required' });
     }
+
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
 
     const lesson = course.lessons.id(req.params.lessonId);
     if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
@@ -116,13 +119,13 @@ exports.markLessonCompleted = async (req, res) => {
 
 exports.submitHomework = async (req, res) => {
   try {
-    const course = await Course.findById(req.params.courseId);
-    if (!course) return res.status(404).json({ message: 'Course not found' });
-
     const user = await User.findById(req.user.id);
-    if (user.subscription.type === 'free' && course.category !== 'ПДД') {
+    if (user.subscription.type !== 'premium') {
       return res.status(403).json({ message: 'Premium subscription required' });
     }
+
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
 
     const lesson = course.lessons.id(req.params.lessonId);
     if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
@@ -144,6 +147,84 @@ exports.submitHomework = async (req, res) => {
     await user.save();
 
     res.json({ message: 'Homework submitted successfully', lesson: { ...lesson.toJSON(), progress: lessonProgress } });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.subscribeToChannel = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.subscribedToChannel = true;
+    await user.save();
+
+    res.json({ message: 'Successfully subscribed to channel' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getNextLesson = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user.subscription.type !== 'premium') {
+      return res.status(403).json({ message: 'Premium subscription required' });
+    }
+
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const currentLesson = course.lessons.id(req.params.lessonId);
+    if (!currentLesson) return res.status(404).json({ message: 'Lesson not found' });
+
+    const lessons = course.lessons.sort((a, b) => a.order - b.order);
+    const currentIndex = lessons.findIndex(l => l._id.equals(currentLesson._id));
+    if (currentIndex === -1 || currentIndex === lessons.length - 1) {
+      return res.status(404).json({ message: 'No next lesson available' });
+    }
+
+    const nextLesson = lessons[currentIndex + 1];
+    const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
+    const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(nextLesson._id)) || { lessonId: nextLesson._id };
+
+    res.json({
+      ...nextLesson.toJSON(),
+      progress: lessonProgress
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getPrevLesson = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user.subscription.type !== 'premium') {
+      return res.status(403).json({ message: 'Premium subscription required' });
+    }
+
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const currentLesson = course.lessons.id(req.params.lessonId);
+    if (!currentLesson) return res.status(404).json({ message: 'Lesson not found' });
+
+    const lessons = course.lessons.sort((a, b) => a.order - b.order);
+    const currentIndex = lessons.findIndex(l => l._id.equals(currentLesson._id));
+    if (currentIndex === -1 || currentIndex === 0) {
+      return res.status(404).json({ message: 'No previous lesson available' });
+    }
+
+    const prevLesson = lessons[currentIndex - 1];
+    const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
+    const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(prevLesson._id)) || { lessonId: prevLesson._id };
+
+    res.json({
+      ...prevLesson.toJSON(),
+      progress: lessonProgress
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
