@@ -1,3 +1,4 @@
+// controllers/userController.js
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
@@ -7,38 +8,6 @@ const generateTokens = (userId) => {
   return { accessToken, refreshToken };
 };
 
-exports.telegramLogin = async (req, res) => {
-  try {
-    const { telegramId, username, avatar } = req.body;
-
-    if (!telegramId || !username) {
-      return res.status(400).json({ message: 'telegramId and username are required' });
-    }
-
-    let user = await User.findOne({ telegramId });
-
-    if (!user) {
-      user = new User({
-        telegramId,
-        username,
-        avatar: avatar || 'default-avatar.png'
-      });
-    } else {
-      user.username = username;
-      if (avatar) user.avatar = avatar;
-    }
-
-    const { accessToken, refreshToken } = generateTokens(user._id);
-    user.refreshToken = refreshToken;
-    await user.save();
-
-    res.json({ accessToken, refreshToken, userId: user._id });
-  } catch (error) {
-    console.error('Telegram login error:', error.message);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-// controllers/userController.js (фрагмент)
 exports.telegramLogin = async (req, res) => {
   try {
     const { telegramId, username, avatar } = req.body;
@@ -52,7 +21,7 @@ exports.telegramLogin = async (req, res) => {
         telegramId,
         username,
         avatar: avatar || 'default-avatar.png',
-        firstLogin: Date.now() // Устанавливаем при первом входе
+        firstLogin: Date.now()
       });
     } else {
       user.username = username;
@@ -69,8 +38,6 @@ exports.telegramLogin = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-// Остальные методы остаются без изменений
 
 exports.refreshToken = async (req, res) => {
   try {
@@ -98,7 +65,25 @@ exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-refreshToken');
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+
+    const progress = Math.min(((user.stats.ticketsCompleted * 2 + user.stats.lessonsCompleted) / 100) * 100, 100);
+    await User.findByIdAndUpdate(req.user.id, { progress });
+
+    res.json({
+      username: user.username,
+      telegramId: user.telegramId,
+      avatar: user.avatar,
+      subscription: user.subscription,
+      progress: {
+        percentage: progress,
+        ticketsCompleted: user.stats.ticketsCompleted,
+        lessonsCompleted: user.stats.lessonsCompleted,
+        totalTimeSpent: user.stats.totalTimeSpent
+      },
+      firstLogin: user.firstLogin,
+      subscribedToChannel: user.subscribedToChannel,
+      createdAt: user.createdAt
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -113,11 +98,30 @@ exports.updateProfile = async (req, res) => {
       { new: true }
     ).select('-refreshToken');
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+
+    const progress = Math.min(((user.stats.ticketsCompleted * 2 + user.stats.lessonsCompleted) / 100) * 100, 100);
+    await User.findByIdAndUpdate(req.user.id, { progress });
+
+    res.json({
+      username: user.username,
+      telegramId: user.telegramId,
+      avatar: user.avatar,
+      subscription: user.subscription,
+      progress: {
+        percentage: progress,
+        ticketsCompleted: user.stats.ticketsCompleted,
+        lessonsCompleted: user.stats.lessonsCompleted,
+        totalTimeSpent: user.stats.totalTimeSpent
+      },
+      firstLogin: user.firstLogin,
+      subscribedToChannel: user.subscribedToChannel,
+      createdAt: user.createdAt
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 exports.updateSubscription = async (req, res) => {
   try {
     const { type, autoRenew } = req.body;
@@ -127,7 +131,7 @@ exports.updateSubscription = async (req, res) => {
       req.user.id,
       { subscription: { type, expiresAt, autoRenew } },
       { new: true }
-    ).select('-password -refreshToken');
+    ).select('-refreshToken');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (error) {
@@ -142,7 +146,13 @@ exports.getProgress = async (req, res) => {
 
     const progress = Math.min(((user.stats.ticketsCompleted * 2 + user.stats.lessonsCompleted) / 100) * 100, 100);
     await User.findByIdAndUpdate(req.user.id, { progress });
-    res.json({ progress });
+
+    res.json({
+      percentage: progress,
+      ticketsCompleted: user.stats.ticketsCompleted,
+      lessonsCompleted: user.stats.lessonsCompleted,
+      totalTimeSpent: user.stats.totalTimeSpent
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

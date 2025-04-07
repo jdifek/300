@@ -1,3 +1,4 @@
+// routes/userRoutes.js
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
@@ -5,20 +6,10 @@ const { isAuthenticated } = require('../middleware/auth');
 
 /**
  * @swagger
- * components:
- *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- */
-
-/**
- * @swagger
- * /api/users/telegram-login:
+ * /api/users/login:
  *   post:
- *     summary: Вход или регистрация пользователя через Telegram
- *     tags: [Auth]
+ *     summary: Авторизация через Telegram
+ *     tags: [Users]
  *     requestBody:
  *       required: true
  *       content:
@@ -26,22 +17,22 @@ const { isAuthenticated } = require('../middleware/auth');
  *           schema:
  *             type: object
  *             properties:
- *               telegramId: { type: string, description: "ID пользователя в Telegram" }
- *               username: { type: string, description: "Имя пользователя" }
- *               avatar: { type: string, description: "URL аватара (опционально)" }
+ *               telegramId: { type: string }
+ *               username: { type: string }
+ *               avatar: { type: string }
  *     responses:
- *       200: { description: "Успешный вход или регистрация" }
- *       400: { description: "Отсутствуют обязательные поля" }
+ *       200: { description: "Токены доступа и обновления" }
+ *       400: { description: "Недостаточно данных" }
  *       500: { description: "Ошибка сервера" }
  */
-router.post('/telegram-login', userController.telegramLogin);
+router.post('/login', userController.telegramLogin);
 
 /**
  * @swagger
  * /api/users/refresh:
  *   post:
- *     summary: Обновление access-токена
- *     tags: [Auth]
+ *     summary: Обновление токена доступа
+ *     tags: [Users]
  *     requestBody:
  *       required: true
  *       content:
@@ -49,10 +40,10 @@ router.post('/telegram-login', userController.telegramLogin);
  *           schema:
  *             type: object
  *             properties:
- *               refreshToken: { type: string, description: "Refresh-токен" }
+ *               refreshToken: { type: string }
  *     responses:
- *       200: { description: "Новые токены сгенерированы" }
- *       401: { description: "Недействительный refresh-токен" }
+ *       200: { description: "Новые токены" }
+ *       401: { description: "Недействительный токен обновления" }
  */
 router.post('/refresh', userController.refreshToken);
 
@@ -61,12 +52,36 @@ router.post('/refresh', userController.refreshToken);
  * /api/users/profile:
  *   get:
  *     summary: Получение профиля пользователя
- *     tags: [User]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     responses:
- *       200: { description: "Профиль пользователя" }
- *       401: { description: "Неавторизован" }
+ *       200:
+ *         description: "Данные профиля пользователя"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 username: { type: string }
+ *                 telegramId: { type: string }
+ *                 avatar: { type: string }
+ *                 subscription: 
+ *                   type: object
+ *                   properties:
+ *                     type: { type: string, enum: ['free', 'premium'] }
+ *                     expiresAt: { type: string, format: date-time }
+ *                     autoRenew: { type: boolean }
+ *                 progress:
+ *                   type: object
+ *                   properties:
+ *                     percentage: { type: number }
+ *                     ticketsCompleted: { type: number }
+ *                     lessonsCompleted: { type: number }
+ *                     totalTimeSpent: { type: number }
+ *                 firstLogin: { type: string, format: date-time }
+ *                 subscribedToChannel: { type: boolean }
+ *                 createdAt: { type: string, format: date-time }
  *       404: { description: "Пользователь не найден" }
  *       500: { description: "Ошибка сервера" }
  */
@@ -77,7 +92,7 @@ router.get('/profile', isAuthenticated, userController.getProfile);
  * /api/users/profile:
  *   put:
  *     summary: Обновление профиля пользователя
- *     tags: [User]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -87,11 +102,35 @@ router.get('/profile', isAuthenticated, userController.getProfile);
  *           schema:
  *             type: object
  *             properties:
- *               username: { type: string, description: "Новое имя пользователя" }
- *               avatar: { type: string, description: "Новый URL аватара" }
+ *               username: { type: string }
+ *               avatar: { type: string }
  *     responses:
- *       200: { description: "Обновленный профиль" }
- *       401: { description: "Неавторизован" }
+ *       200:
+ *         description: "Обновленные данные профиля"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 username: { type: string }
+ *                 telegramId: { type: string }
+ *                 avatar: { type: string }
+ *                 subscription: 
+ *                   type: object
+ *                   properties:
+ *                     type: { type: string, enum: ['free', 'premium'] }
+ *                     expiresAt: { type: string, format: date-time }
+ *                     autoRenew: { type: boolean }
+ *                 progress:
+ *                   type: object
+ *                   properties:
+ *                     percentage: { type: number }
+ *                     ticketsCompleted: { type: number }
+ *                     lessonsCompleted: { type: number }
+ *                     totalTimeSpent: { type: number }
+ *                 firstLogin: { type: string, format: date-time }
+ *                 subscribedToChannel: { type: boolean }
+ *                 createdAt: { type: string, format: date-time }
  *       404: { description: "Пользователь не найден" }
  *       500: { description: "Ошибка сервера" }
  */
@@ -102,7 +141,7 @@ router.put('/profile', isAuthenticated, userController.updateProfile);
  * /api/users/subscription:
  *   put:
  *     summary: Обновление подписки пользователя
- *     tags: [User]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -112,11 +151,10 @@ router.put('/profile', isAuthenticated, userController.updateProfile);
  *           schema:
  *             type: object
  *             properties:
- *               type: { type: string, enum: ["free", "premium"], description: "Тип подписки" }
- *               autoRenew: { type: boolean, description: "Автопродление подписки" }
+ *               type: { type: string, enum: ['free', 'premium'] }
+ *               autoRenew: { type: boolean }
  *     responses:
- *       200: { description: "Обновленная подписка" }
- *       401: { description: "Неавторизован" }
+ *       200: { description: "Обновленные данные пользователя" }
  *       404: { description: "Пользователь не найден" }
  *       500: { description: "Ошибка сервера" }
  */
@@ -127,12 +165,21 @@ router.put('/subscription', isAuthenticated, userController.updateSubscription);
  * /api/users/progress:
  *   get:
  *     summary: Получение прогресса пользователя
- *     tags: [User]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     responses:
- *       200: { description: "Прогресс пользователя" }
- *       401: { description: "Неавторизован" }
+ *       200:
+ *         description: "Прогресс пользователя"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 percentage: { type: number }
+ *                 ticketsCompleted: { type: number }
+ *                 lessonsCompleted: { type: number }
+ *                 totalTimeSpent: { type: number }
  *       404: { description: "Пользователь не найден" }
  *       500: { description: "Ошибка сервера" }
  */
