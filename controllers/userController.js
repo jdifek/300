@@ -78,7 +78,8 @@ exports.getProfile = async (req, res) => {
         percentage: progress,
         ticketsCompleted: user.stats.ticketsCompleted,
         lessonsCompleted: user.stats.lessonsCompleted,
-        totalTimeSpent: user.stats.totalTimeSpent
+        totalTimeSpent: user.stats.totalTimeSpent,
+        mistakes: user.stats.mistakes // Добавлено поле ошибок
       },
       firstLogin: user.firstLogin,
       subscribedToChannel: user.subscribedToChannel,
@@ -111,7 +112,8 @@ exports.updateProfile = async (req, res) => {
         percentage: progress,
         ticketsCompleted: user.stats.ticketsCompleted,
         lessonsCompleted: user.stats.lessonsCompleted,
-        totalTimeSpent: user.stats.totalTimeSpent
+        totalTimeSpent: user.stats.totalTimeSpent,
+        mistakes: user.stats.mistakes // Добавлено поле ошибок
       },
       firstLogin: user.firstLogin,
       subscribedToChannel: user.subscribedToChannel,
@@ -151,7 +153,8 @@ exports.getProgress = async (req, res) => {
       percentage: progress,
       ticketsCompleted: user.stats.ticketsCompleted,
       lessonsCompleted: user.stats.lessonsCompleted,
-      totalTimeSpent: user.stats.totalTimeSpent
+      totalTimeSpent: user.stats.totalTimeSpent,
+      mistakes: user.stats.mistakes // Добавлено поле ошибок
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

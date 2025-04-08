@@ -22,7 +22,8 @@ const UserSchema = new mongoose.Schema({
   stats: {
     ticketsCompleted: { type: Number, default: 0 },
     lessonsCompleted: { type: Number, default: 0 },
-    totalTimeSpent: { type: Number, default: 0 }
+    totalTimeSpent: { type: Number, default: 0 },
+    mistakes: { type: Number, default: 0 } // Добавлено поле для ошибок
   },
   subscription: {
     type: { type: String, enum: ['free', 'premium'], default: 'free' },
@@ -31,9 +32,9 @@ const UserSchema = new mongoose.Schema({
   },
   coursesProgress: [CourseProgressSchema],
   refreshToken: { type: String },
-  firstLogin: { type: Date, default: Date.now }, // Дата первого входа
-  subscribedToChannel: { type: Boolean, default: false }, // Подписан ли на канал
+  firstLogin: { type: Date, default: Date.now },
+  subscribedToChannel: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('User', UserSchema); 

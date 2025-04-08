@@ -79,6 +79,7 @@ router.post('/refresh', userController.refreshToken);
  *                     ticketsCompleted: { type: number }
  *                     lessonsCompleted: { type: number }
  *                     totalTimeSpent: { type: number }
+ *                     mistakes: { type: number } # Добавлено поле ошибок
  *                 firstLogin: { type: string, format: date-time }
  *                 subscribedToChannel: { type: boolean }
  *                 createdAt: { type: string, format: date-time }
@@ -128,6 +129,7 @@ router.get('/profile', isAuthenticated, userController.getProfile);
  *                     ticketsCompleted: { type: number }
  *                     lessonsCompleted: { type: number }
  *                     totalTimeSpent: { type: number }
+ *                     mistakes: { type: number } # Добавлено поле ошибок
  *                 firstLogin: { type: string, format: date-time }
  *                 subscribedToChannel: { type: boolean }
  *                 createdAt: { type: string, format: date-time }
@@ -180,6 +182,7 @@ router.put('/subscription', isAuthenticated, userController.updateSubscription);
  *                 ticketsCompleted: { type: number }
  *                 lessonsCompleted: { type: number }
  *                 totalTimeSpent: { type: number }
+ *                 mistakes: { type: number } # Добавлено поле ошибок
  *       404: { description: "Пользователь не найден" }
  *       500: { description: "Ошибка сервера" }
  */
