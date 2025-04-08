@@ -1,0 +1,34 @@
+{
+  "examRules": {
+    "baseQuestions": 20,
+    "baseTimeMinutes": 20,
+    "maxErrors": 2,
+    "additionalQuestions": {
+      "oneError": {
+        "questions": 5,
+        "timeMinutes": 5
+      },
+      "twoErrors": {
+        "questions": 10,
+        "timeMinutes": 10
+      }
+    }
+  },
+  "sharing": {
+    "premium": {
+      "template": "premium_share_template.png",
+      "allowStorySharing": true
+    },
+    "free": {
+      "referralLink": "https://yourapp.com/ref=",
+      "messageTemplate": "Я сдал экзамен ПДД! Попробуй и ты: {referralLink}"
+    }
+  },
+  "results": {
+    "showCorrectCount": true,
+    "showIncorrectCount": true,
+    "showIncorrectQuestions": true,
+    "showTimeSpent": true,
+    "showTopics": true
+  }
+} 

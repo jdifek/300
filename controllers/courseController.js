@@ -5,10 +5,6 @@ const User = require('../models/User');
 exports.getCourses = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (user.subscription.type !== 'premium') {
-      return res.status(403).json({ message: 'Premium subscription required' });
-    }
-
     const courses = await Course.find();
     const coursesWithProgress = courses.map(course => {
       const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
@@ -30,10 +26,6 @@ exports.getCourses = async (req, res) => {
 exports.getCourse = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (user.subscription.type !== 'premium') {
-      return res.status(403).json({ message: 'Premium subscription required' });
-    }
-
     const course = await Course.findById(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
@@ -59,10 +51,6 @@ exports.getCourse = async (req, res) => {
 exports.getLesson = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (user.subscription.type !== 'premium') {
-      return res.status(403).json({ message: 'Premium subscription required' });
-    }
-
     const course = await Course.findById(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
@@ -84,10 +72,6 @@ exports.getLesson = async (req, res) => {
 exports.markLessonCompleted = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (user.subscription.type !== 'premium') {
-      return res.status(403).json({ message: 'Premium subscription required' });
-    }
-
     const course = await Course.findById(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
@@ -120,10 +104,6 @@ exports.markLessonCompleted = async (req, res) => {
 exports.submitHomework = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (user.subscription.type !== 'premium') {
-      return res.status(403).json({ message: 'Premium subscription required' });
-    }
-
     const course = await Course.findById(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
@@ -169,10 +149,6 @@ exports.subscribeToChannel = async (req, res) => {
 exports.getNextLesson = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (user.subscription.type !== 'premium') {
-      return res.status(403).json({ message: 'Premium subscription required' });
-    }
-
     const course = await Course.findById(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
@@ -201,10 +177,6 @@ exports.getNextLesson = async (req, res) => {
 exports.getPrevLesson = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (user.subscription.type !== 'premium') {
-      return res.status(403).json({ message: 'Premium subscription required' });
-    }
-
     const course = await Course.findById(req.params.courseId);
     if (!course) return res.status(404).json({ message: 'Course not found' });
 

@@ -3,7 +3,6 @@ const express = require('express');
 const router = express.Router();
 const courseController = require('../controllers/courseController');
 const { isAuthenticated } = require('../middleware/auth');
-const { checkChannelSubscription } = require('../middleware/channelSubscription');
 
 /**
  * @swagger
@@ -15,10 +14,10 @@ const { checkChannelSubscription } = require('../middleware/channelSubscription'
  *       - bearerAuth: []
  *     responses:
  *       200: { description: "Список курсов с прогрессом" }
- *       403: { description: "Требуется премиум-подписка или подписка на канал" }
+ *       403: { description: "Требуется премиум-подписка" }
  *       500: { description: "Ошибка сервера" }
  */
-router.get('/', isAuthenticated, checkChannelSubscription, courseController.getCourses);
+router.get('/', isAuthenticated, courseController.getCourses);
 
 /**
  * @swagger
@@ -37,11 +36,10 @@ router.get('/', isAuthenticated, checkChannelSubscription, courseController.getC
  *         description: ID курса
  *     responses:
  *       200: { description: "Данные курса с прогрессом" }
- *       403: { description: "Требуется премиум-подписка или подписка на канал" }
  *       404: { description: "Курс не найден" }
  *       500: { description: "Ошибка сервера" }
  */
-router.get('/:courseId', isAuthenticated, checkChannelSubscription, courseController.getCourse);
+router.get('/:courseId', isAuthenticated, courseController.getCourse);
 
 /**
  * @swagger
@@ -66,11 +64,10 @@ router.get('/:courseId', isAuthenticated, checkChannelSubscription, courseContro
  *         description: ID урока
  *     responses:
  *       200: { description: "Данные урока с прогрессом" }
- *       403: { description: "Требуется премиум-подписка или подписка на канал" }
  *       404: { description: "Урок или курс не найден" }
  *       500: { description: "Ошибка сервера" }
  */
-router.get('/:courseId/lessons/:lessonId', isAuthenticated, checkChannelSubscription, courseController.getLesson);
+router.get('/:courseId/lessons/:lessonId', isAuthenticated, courseController.getLesson);
 
 /**
  * @swagger
@@ -95,11 +92,10 @@ router.get('/:courseId/lessons/:lessonId', isAuthenticated, checkChannelSubscrip
  *         description: ID урока
  *     responses:
  *       200: { description: "Урок отмечен как завершенный" }
- *       403: { description: "Требуется премиум-подписка или подписка на канал" }
  *       404: { description: "Урок или курс не найден" }
  *       500: { description: "Ошибка сервера" }
  */
-router.post('/:courseId/lessons/:lessonId/complete', isAuthenticated, checkChannelSubscription, courseController.markLessonCompleted);
+router.post('/:courseId/lessons/:lessonId/complete', isAuthenticated, courseController.markLessonCompleted);
 
 /**
  * @swagger
@@ -132,11 +128,10 @@ router.post('/:courseId/lessons/:lessonId/complete', isAuthenticated, checkChann
  *               homework: { type: string, description: "Данные домашнего задания" }
  *     responses:
  *       200: { description: "Домашнее задание отправлено" }
- *       403: { description: "Требуется премиум-подписка или подписка на канал" }
  *       404: { description: "Урок или курс не найден" }
  *       500: { description: "Ошибка сервера" }
  */
-router.post('/:courseId/lessons/:lessonId/homework', isAuthenticated, checkChannelSubscription, courseController.submitHomework);
+router.post('/:courseId/lessons/:lessonId/homework', isAuthenticated, courseController.submitHomework);
 
 /**
  * @swagger
@@ -176,11 +171,10 @@ router.post('/subscribe-to-channel', isAuthenticated, courseController.subscribe
  *         description: ID текущего урока
  *     responses:
  *       200: { description: "Данные следующего урока с прогрессом" }
- *       403: { description: "Требуется премиум-подписка или подписка на канал" }
  *       404: { description: "Курс, урок или следующий урок не найдены" }
  *       500: { description: "Ошибка сервера" }
  */
-router.get('/:courseId/lessons/:lessonId/next-lesson', isAuthenticated, checkChannelSubscription, courseController.getNextLesson);
+router.get('/:courseId/lessons/:lessonId/next-lesson', isAuthenticated, courseController.getNextLesson);
 
 /**
  * @swagger
@@ -205,10 +199,9 @@ router.get('/:courseId/lessons/:lessonId/next-lesson', isAuthenticated, checkCha
  *         description: ID текущего урока
  *     responses:
  *       200: { description: "Данные предыдущего урока с прогрессом" }
- *       403: { description: "Требуется премиум-подписка или подписка на канал" }
  *       404: { description: "Курс, урок или предыдущий урок не найдены" }
  *       500: { description: "Ошибка сервера" }
  */
-router.get('/:courseId/lessons/:lessonId/prev-lesson', isAuthenticated, checkChannelSubscription, courseController.getPrevLesson);
+router.get('/:courseId/lessons/:lessonId/prev-lesson', isAuthenticated, courseController.getPrevLesson);
 
 module.exports = router;
