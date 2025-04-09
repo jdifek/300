@@ -15,6 +15,56 @@ const { isAuthenticated } = require('../middleware/auth');
  *     responses:
  *       200:
  *         description: Список билетов
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                     description: ID билета
+ *                   number:
+ *                     type: integer
+ *                     description: Номер билета
+ *                   questions:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           description: ID вопроса
+ *                         text:
+ *                           type: string
+ *                           description: Текст вопроса
+ *                         imageUrl:
+ *                           type: string
+ *                           description: URL изображения (если есть)
+ *                         options:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               text:
+ *                                 type: string
+ *                                 description: Текст варианта ответа
+ *                               isCorrect:
+ *                                 type: boolean
+ *                                 description: Является ли вариант правильным
+ *                         hint:
+ *                           type: string
+ *                           description: Подсказка (если есть)
+ *                         videoUrl:
+ *                           type: string
+ *                           description: URL видео (если есть)
+ *                         category:
+ *                           type: string
+ *                           description: Категория вопроса
+ *                         questionNumber:
+ *                           type: integer
+ *                           description: Номер вопроса в билете
  *       401:
  *         description: Не авторизован
  */
@@ -34,9 +84,58 @@ router.get('/', isAuthenticated, ticketController.getAllTickets);
  *         required: true
  *         schema:
  *           type: integer
+ *         description: Номер билета
  *     responses:
  *       200:
- *         description: Билет
+ *         description: Данные билета
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: ID билета
+ *                 number:
+ *                   type: integer
+ *                   description: Номер билета
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       text:
+ *                         type: string
+ *                         description: Текст вопроса
+ *                       imageUrl:
+ *                         type: string
+ *                         description: URL изображения (если есть)
+ *                       options:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             text:
+ *                               type: string
+ *                               description: Текст варианта ответа
+ *                             isCorrect:
+ *                               type: boolean
+ *                               description: Является ли вариант правильным
+ *                       hint:
+ *                         type: string
+ *                         description: Подсказка (если есть)
+ *                       videoUrl:
+ *                         type: string
+ *                         description: URL видео (если есть)
+ *                       category:
+ *                         type: string
+ *                         description: Категория вопроса
+ *                       questionNumber:
+ *                         type: integer
+ *                         description: Номер вопроса в билете
  *       404:
  *         description: Билет не найден
  *       401:
@@ -58,9 +157,49 @@ router.get('/:number', isAuthenticated, ticketController.getTicketByNumber);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Категория вопросов
  *     responses:
  *       200:
- *         description: Список вопросов
+ *         description: Список вопросов по категории
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                     description: ID вопроса
+ *                   text:
+ *                     type: string
+ *                     description: Текст вопроса
+ *                   imageUrl:
+ *                     type: string
+ *                     description: URL изображения (если есть)
+ *                   options:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         text:
+ *                           type: string
+ *                           description: Текст варианта ответа
+ *                         isCorrect:
+ *                           type: boolean
+ *                           description: Является ли вариант правильным
+ *                   hint:
+ *                     type: string
+ *                     description: Подсказка (если есть)
+ *                   videoUrl:
+ *                     type: string
+ *                     description: URL видео (если есть)
+ *                   category:
+ *                     type: string
+ *                     description: Категория вопроса
+ *                   questionNumber:
+ *                     type: integer
+ *                     description: Номер вопроса в билете
  *       401:
  *         description: Не авторизован
  */
@@ -79,10 +218,49 @@ router.get('/category/:category', isAuthenticated, ticketController.getQuestions
  *         name: count
  *         schema:
  *           type: integer
- *         description: Количество вопросов
+ *         description: Количество вопросов (по умолчанию 20)
  *     responses:
  *       200:
  *         description: Список случайных вопросов
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                     description: ID вопроса
+ *                   text:
+ *                     type: string
+ *                     description: Текст вопроса
+ *                   imageUrl:
+ *                     type: string
+ *                     description: URL изображения (если есть)
+ *                   options:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         text:
+ *                           type: string
+ *                           description: Текст варианта ответа
+ *                         isCorrect:
+ *                           type: boolean
+ *                           description: Является ли вариант правильным
+ *                   hint:
+ *                     type: string
+ *                     description: Подсказка (если есть)
+ *                   videoUrl:
+ *                     type: string
+ *                     description: URL видео (если есть)
+ *                   category:
+ *                     type: string
+ *                     description: Категория вопроса
+ *                   questionNumber:
+ *                     type: integer
+ *                     description: Номер вопроса в билете
  *       401:
  *         description: Не авторизован
  */

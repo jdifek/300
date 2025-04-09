@@ -20,16 +20,80 @@ const { isAuthenticated } = require('../middleware/auth');
  *             type: object
  *             required:
  *               - userId
- *               - ticketId
  *             properties:
  *               userId:
  *                 type: string
- *              
+ *                 description: ID пользователя
  *     responses:
  *       201:
  *         description: Экзамен начат
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: ID экзамена
+ *                 userId:
+ *                   type: string
+ *                   description: ID пользователя
+ *                 ticketNumber:
+ *                   type: integer
+ *                   description: Номер выбранного билета
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID вопроса из билета
+ *                       userAnswer:
+ *                         type: integer
+ *                         nullable: true
+ *                         description: Ответ пользователя (null, если не отвечено)
+ *                       isCorrect:
+ *                         type: boolean
+ *                         nullable: true
+ *                         description: Правильность ответа (null, если не отвечено)
+ *                 extraQuestions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID дополнительного вопроса
+ *                       userAnswer:
+ *                         type: integer
+ *                         nullable: true
+ *                         description: Ответ пользователя (null, если не отвечено)
+ *                       isCorrect:
+ *                         type: boolean
+ *                         nullable: true
+ *                         description: Правильность ответа (null, если не отвечено)
+ *                 mistakes:
+ *                   type: integer
+ *                   description: Количество ошибок
+ *                 status:
+ *                   type: string
+ *                   enum: ['in_progress', 'passed', 'failed']
+ *                   description: Статус экзамена
+ *                 startTime:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Время начала экзамена
+ *                 timeLimit:
+ *                   type: integer
+ *                   description: Ограничение времени (в миллисекундах)
+ *                 extraTime:
+ *                   type: integer
+ *                   description: Дополнительное время (в миллисекундах)
  *       401:
  *         description: Не авторизован
+ *       400:
+ *         description: Неверный запрос
  */
 router.post('/start',
   isAuthenticated,
@@ -51,6 +115,7 @@ router.post('/start',
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID экзамена
  *     requestBody:
  *       required: true
  *       content:
@@ -63,15 +128,82 @@ router.post('/start',
  *             properties:
  *               questionIndex:
  *                 type: integer
+ *                 description: Индекс вопроса
  *               userAnswer:
  *                 type: integer
+ *                 description: Ответ пользователя (индекс варианта ответа)
  *     responses:
  *       200:
  *         description: Ответ принят
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: ID экзамена
+ *                 userId:
+ *                   type: string
+ *                   description: ID пользователя
+ *                 ticketNumber:
+ *                   type: integer
+ *                   description: Номер выбранного билета
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID вопроса из билета
+ *                       userAnswer:
+ *                         type: integer
+ *                         nullable: true
+ *                         description: Ответ пользователя (null, если не отвечено)
+ *                       isCorrect:
+ *                         type: boolean
+ *                         nullable: true
+ *                         description: Правильность ответа (null, если не отвечено)
+ *                 extraQuestions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID дополнительного вопроса
+ *                       userAnswer:
+ *                         type: integer
+ *                         nullable: true
+ *                         description: Ответ пользователя (null, если не отвечено)
+ *                       isCorrect:
+ *                         type: boolean
+ *                         nullable: true
+ *                         description: Правильность ответа (null, если не отвечено)
+ *                 mistakes:
+ *                   type: integer
+ *                   description: Количество ошибок
+ *                 status:
+ *                   type: string
+ *                   enum: ['in_progress', 'passed', 'failed']
+ *                   description: Статус экзамена
+ *                 startTime:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Время начала экзамена
+ *                 timeLimit:
+ *                   type: integer
+ *                   description: Ограничение времени (в миллисекундах)
+ *                 extraTime:
+ *                   type: integer
+ *                   description: Дополнительное время (в миллисекундах)
  *       400:
  *         description: Неверный запрос
  *       401:
  *         description: Не авторизован
+ *       404:
+ *         description: Экзамен не найден
  */
 router.post('/:examId/answer',
   isAuthenticated,
@@ -93,9 +225,158 @@ router.post('/:examId/answer',
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID экзамена
  *     responses:
  *       200:
  *         description: Статус экзамена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 exam:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID экзамена
+ *                     userId:
+ *                       type: string
+ *                       description: ID пользователя
+ *                     ticketNumber:
+ *                       type: integer
+ *                       description: Номер выбранного билета
+ *                     questions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: object
+ *                             description: Данные вопроса из билета
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                                 description: ID вопроса
+ *                               text:
+ *                                 type: string
+ *                                 description: Текст вопроса
+ *                               imageUrl:
+ *                                 type: string
+ *                                 description: URL изображения (если есть)
+ *                               options:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *                                   properties:
+ *                                     text:
+ *                                       type: string
+ *                                       description: Текст варианта ответа
+ *                                     isCorrect:
+ *                                       type: boolean
+ *                                       description: Является ли вариант правильным
+ *                               hint:
+ *                                 type: string
+ *                                 description: Подсказка (если есть)
+ *                               videoUrl:
+ *                                 type: string
+ *                                 description: URL видео (если есть)
+ *                               category:
+ *                                 type: string
+ *                                 description: Категория вопроса
+ *                               questionNumber:
+ *                                 type: integer
+ *                                 description: Номер вопроса в билете
+ *                           userAnswer:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: Ответ пользователя (null, если не отвечено)
+ *                           isCorrect:
+ *                             type: boolean
+ *                             nullable: true
+ *                             description: Правильность ответа (null, если не отвечено)
+ *                     extraQuestions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: object
+ *                             description: Данные дополнительного вопроса
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                                 description: ID вопроса
+ *                               text:
+ *                                 type: string
+ *                                 description: Текст вопроса
+ *                               imageUrl:
+ *                                 type: string
+ *                                 description: URL изображения (если есть)
+ *                               options:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *                                   properties:
+ *                                     text:
+ *                                       type: string
+ *                                       description: Текст варианта ответа
+ *                                     isCorrect:
+ *                                       type: boolean
+ *                                       description: Является ли вариант правильным
+ *                               hint:
+ *                                 type: string
+ *                                 description: Подсказка (если есть)
+ *                               videoUrl:
+ *                                 type: string
+ *                                 description: URL видео (если есть)
+ *                               category:
+ *                                 type: string
+ *                                 description: Категория вопроса
+ *                           userAnswer:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: Ответ пользователя (null, если не отвечено)
+ *                           isCorrect:
+ *                             type: boolean
+ *                             nullable: true
+ *                             description: Правильность ответа (null, если не отвечено)
+ *                     mistakes:
+ *                       type: integer
+ *                       description: Количество ошибок
+ *                     status:
+ *                       type: string
+ *                       enum: ['in_progress', 'passed', 'failed']
+ *                       description: Статус экзамена
+ *                     startTime:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Время начала экзамена
+ *                     timeLimit:
+ *                       type: integer
+ *                       description: Ограничение времени (в миллисекундах)
+ *                     extraTime:
+ *                       type: integer
+ *                       description: Дополнительное время (в миллисекундах)
+ *                 statistics:
+ *                   type: object
+ *                   properties:
+ *                     totalQuestions:
+ *                       type: integer
+ *                       description: Общее количество вопросов
+ *                     correctAnswers:
+ *                       type: integer
+ *                       description: Количество правильных ответов
+ *                     mistakes:
+ *                       type: integer
+ *                       description: Количество ошибок
+ *                     timeSpent:
+ *                       type: integer
+ *                       description: Время, затраченное на экзамен (в миллисекундах)
+ *                     status:
+ *                       type: string
+ *                       enum: ['in_progress', 'passed', 'failed']
+ *                       description: Статус экзамена
  *       404:
  *         description: Экзамен не найден
  *       401:
@@ -121,9 +402,61 @@ router.get('/:examId',
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID экзамена
  *     responses:
  *       200:
  *         description: Шаблон для публикации
+ *         content:
+ *           application/json:
+ *             schema:
+ *               oneOf:
+ *                 - type: object
+ *                   properties:
+ *                     type:
+ *                       type: string
+ *                       description: Тип шаблона
+ *                       example: "image"
+ *                     template:
+ *                       type: string
+ *                       description: Название шаблона
+ *                       example: "premium_result_template.jpg"
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         score:
+ *                           type: integer
+ *                           description: Количество правильных ответов
+ *                         total:
+ *                           type: integer
+ *                           description: Общее количество вопросов
+ *                         mistakes:
+ *                           type: integer
+ *                           description: Количество ошибок
+ *                         time:
+ *                           type: integer
+ *                           description: Время, затраченное на экзамен (в минутах)
+ *                     shareOptions:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Варианты публикации
+ *                       example: ["story", "post"]
+ *                   description: Шаблон для премиум-пользователей
+ *                 - type: object
+ *                   properties:
+ *                     type:
+ *                       type: string
+ *                       description: Тип шаблона
+ *                       example: "text"
+ *                     template:
+ *                       type: string
+ *                       description: Текст шаблона
+ *                       example: "Вы набрали 18 из 20 баллов!"
+ *                     referralLink:
+ *                       type: string
+ *                       description: Реферальная ссылка
+ *                       example: "https://app.link/referral"
+ *                   description: Шаблон для обычных пользователей
  *       404:
  *         description: Экзамен не найден
  *       401:
@@ -154,9 +487,22 @@ router.get('/:examId/share',
  *             properties:
  *               ticketId:
  *                 type: string
+ *                 description: ID билета
  *     responses:
  *       200:
  *         description: Билет выбран
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Сообщение об успешном выборе билета
+ *                   example: "Билет выбран"
+ *                 ticketId:
+ *                   type: string
+ *                   description: ID выбранного билета
  *       401:
  *         description: Не авторизован
  */
@@ -179,9 +525,158 @@ router.post('/ticket',
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID экзамена
  *     responses:
  *       200:
  *         description: Результаты экзамена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 exam:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID экзамена
+ *                     userId:
+ *                       type: string
+ *                       description: ID пользователя
+ *                     ticketNumber:
+ *                       type: integer
+ *                       description: Номер выбранного билета
+ *                     questions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: object
+ *                             description: Данные вопроса из билета
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                                 description: ID вопроса
+ *                               text:
+ *                                 type: string
+ *                                 description: Текст вопроса
+ *                               imageUrl:
+ *                                 type: string
+ *                                 description: URL изображения (если есть)
+ *                               options:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *                                   properties:
+ *                                     text:
+ *                                       type: string
+ *                                       description: Текст варианта ответа
+ *                                     isCorrect:
+ *                                       type: boolean
+ *                                       description: Является ли вариант правильным
+ *                               hint:
+ *                                 type: string
+ *                                 description: Подсказка (если есть)
+ *                               videoUrl:
+ *                                 type: string
+ *                                 description: URL видео (если есть)
+ *                               category:
+ *                                 type: string
+ *                                 description: Категория вопроса
+ *                               questionNumber:
+ *                                 type: integer
+ *                                 description: Номер вопроса в билете
+ *                           userAnswer:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: Ответ пользователя (null, если не отвечено)
+ *                           isCorrect:
+ *                             type: boolean
+ *                             nullable: true
+ *                             description: Правильность ответа (null, если не отвечено)
+ *                     extraQuestions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: object
+ *                             description: Данные дополнительного вопроса
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                                 description: ID вопроса
+ *                               text:
+ *                                 type: string
+ *                                 description: Текст вопроса
+ *                               imageUrl:
+ *                                 type: string
+ *                                 description: URL изображения (если есть)
+ *                               options:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *                                   properties:
+ *                                     text:
+ *                                       type: string
+ *                                       description: Текст варианта ответа
+ *                                     isCorrect:
+ *                                       type: boolean
+ *                                       description: Является ли вариант правильным
+ *                               hint:
+ *                                 type: string
+ *                                 description: Подсказка (если есть)
+ *                               videoUrl:
+ *                                 type: string
+ *                                 description: URL видео (если есть)
+ *                               category:
+ *                                 type: string
+ *                                 description: Категория вопроса
+ *                           userAnswer:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: Ответ пользователя (null, если не отвечено)
+ *                           isCorrect:
+ *                             type: boolean
+ *                             nullable: true
+ *                             description: Правильность ответа (null, если не отвечено)
+ *                     mistakes:
+ *                       type: integer
+ *                       description: Количество ошибок
+ *                     status:
+ *                       type: string
+ *                       enum: ['in_progress', 'passed', 'failed']
+ *                       description: Статус экзамена
+ *                     startTime:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Время начала экзамена
+ *                     timeLimit:
+ *                       type: integer
+ *                       description: Ограничение времени (в миллисекундах)
+ *                     extraTime:
+ *                       type: integer
+ *                       description: Дополнительное время (в миллисекундах)
+ *                 statistics:
+ *                   type: object
+ *                   properties:
+ *                     totalQuestions:
+ *                       type: integer
+ *                       description: Общее количество вопросов
+ *                     correctAnswers:
+ *                       type: integer
+ *                       description: Количество правильных ответов
+ *                     mistakes:
+ *                       type: integer
+ *                       description: Количество ошибок
+ *                     timeSpent:
+ *                       type: integer
+ *                       description: Время, затраченное на экзамен (в миллисекундах)
+ *                     status:
+ *                       type: string
+ *                       enum: ['in_progress', 'passed', 'failed']
+ *                       description: Статус экзамена
  *       404:
  *         description: Результаты не найдены
  *       401:
