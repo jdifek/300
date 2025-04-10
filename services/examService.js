@@ -5,21 +5,28 @@ const ExtraQuestion = require('../models/ExtraQuestion');
 class ExamService {
   async createExam(userId) {
     try {
-      // Выбираем случайный билет (от 1 до 40)
-      const ticketNumber = Math.floor(Math.random() * 40) + 1;
-      const ticket = await Ticket.findOne({ number: ticketNumber });
-
-      if (!ticket) {
-        throw new Error('Билет не найден');
+      // Получаем все существующие билеты
+      const tickets = await Ticket.find({}, 'number');
+      if (tickets.length === 0) {
+        throw new Error('В базе данных нет билетов');
       }
-
+  
+      // Выбираем случайный билет из существующих
+      const randomIndex = Math.floor(Math.random() * tickets.length);
+      const ticketNumber = tickets[randomIndex].number;
+      const ticket = await Ticket.findOne({ number: ticketNumber });
+  
+      if (!ticket) {
+        throw new Error('Билет не найден'); // Это не должно произойти, но оставим для безопасности
+      }
+  
       // Формируем список вопросов для экзамена
       const examQuestions = ticket.questions.map((question) => ({
         questionId: question._id,
         userAnswer: null,
         isCorrect: null
       }));
-
+  
       // Создаем новый экзамен
       const exam = new Exam({
         userId,
@@ -31,7 +38,7 @@ class ExamService {
         startTime: new Date(),
         timeLimit: 20 * 60 * 1000 // 20 минут
       });
-
+  
       await exam.save();
       return exam;
     } catch (error) {

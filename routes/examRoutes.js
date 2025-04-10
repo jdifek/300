@@ -8,7 +8,7 @@ const { isAuthenticated } = require('../middleware/auth');
  * @swagger
  * /api/exam/start:
  *   post:
- *     summary: Начать экзамен
+ *     summary: Начать экзамен с автоматически выбранным билетом
  *     tags: [Exam]
  *     security:
  *       - bearerAuth: []
@@ -26,7 +26,7 @@ const { isAuthenticated } = require('../middleware/auth');
  *                 description: ID пользователя
  *     responses:
  *       201:
- *         description: Экзамен начат
+ *         description: Экзамен начат с случайным билетом
  *         content:
  *           application/json:
  *             schema:
@@ -40,7 +40,7 @@ const { isAuthenticated } = require('../middleware/auth');
  *                   description: ID пользователя
  *                 ticketNumber:
  *                   type: integer
- *                   description: Номер выбранного билета
+ *                   description: Номер случайного выбранного билета
  *                 questions:
  *                   type: array
  *                   items:
@@ -466,49 +466,6 @@ router.get('/:examId/share',
   isAuthenticated,
   validateExamId,
   examController.getShareTemplate
-);
-
-/**
- * @swagger
- * /api/exam/ticket:
- *   post:
- *     summary: Выбрать билет для экзамена
- *     tags: [Exam]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - ticketId
- *             properties:
- *               ticketId:
- *                 type: string
- *                 description: ID билета
- *     responses:
- *       200:
- *         description: Билет выбран
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   description: Сообщение об успешном выборе билета
- *                   example: "Билет выбран"
- *                 ticketId:
- *                   type: string
- *                   description: ID выбранного билета
- *       401:
- *         description: Не авторизован
- */
-router.post('/ticket',
-  isAuthenticated,
-  examController.selectTicket
 );
 
 /**

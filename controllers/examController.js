@@ -54,16 +54,6 @@ class ExamController {
     }
   }
 
-  async selectTicket(req, res, next) {
-    try {
-      const { ticketId } = req.body; // Получаем ticketId из тела запроса
-      // Здесь можно добавить логику для обработки выбора билета
-      // Например, сохранить выбранный билет в базе данных или сессии
-      res.json({ message: 'Билет выбран', ticketId }); // Возвращаем подтверждение
-    } catch (error) {
-      next(error);
-    }
-  }
 }
 
 module.exports = new ExamController(); 

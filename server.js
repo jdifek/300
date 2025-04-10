@@ -49,7 +49,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tickets', ticketRoutes);
-app.use('/api/exams', examRoutes);
+app.use('/api/exam', examRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
