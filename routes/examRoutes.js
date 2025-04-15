@@ -4,6 +4,11 @@ const examController = require('../controllers/examController');
 const { validateExamStart, validateAnswer, validateExamId } = require('../middleware/examValidation');
 const { isAuthenticated } = require('../middleware/auth');
 
+router.post('/marafon', 
+  isAuthenticated,
+  examController.marafon
+)
+
 /**
  * @swagger
  * /api/exam/start:

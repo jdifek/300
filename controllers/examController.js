@@ -2,6 +2,14 @@ const examService = require('../services/examService');
 const ApiError = require('../exceptions/api-error');
 
 class ExamController {
+  async marafon(req, res, next) {
+    try {
+      const answers = await examService.getAnswers();
+      res.json(answers);
+    } catch (error) {
+      next(error);
+    }
+  }
   async startExam(req, res, next) {
     try {
       const { userId } = req.body;

@@ -3,6 +3,24 @@ const Ticket = require('../models/Ticket');
 const ExtraQuestion = require('../models/ExtraQuestion');
 
 class ExamService {
+  async getAnswers() {
+    try {
+      const tickets = await Ticket.find().lean();
+
+      const allQuestions = tickets.flatMap(ticket =>
+        ticket.questions.map(question => ({
+          questionText: question.text,
+          questionId: question._id,
+          options: question.options,
+          correctAnswer: question.options.find(opt => opt.isCorrect)?.text || null
+        }))
+      );
+
+      return allQuestions;
+    } catch (error) {
+      throw new Error(`Ошибка при получении вопросов: ${error.message}`);
+    }
+  }
   async createExam(userId) {
     try {
       // Получаем все существующие билеты
