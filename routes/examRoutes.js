@@ -4,6 +4,49 @@ const examController = require('../controllers/examController');
 const { validateExamStart, validateAnswer, validateExamId } = require('../middleware/examValidation');
 const { isAuthenticated } = require('../middleware/auth');
 
+/**
+ * @swagger
+ * /api/exam/marafon:
+ *   get:
+ *     summary: Получить все вопросы и ответы всех билетов
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список всех вопросов с вариантами ответов и правильными ответами
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   questionId:
+ *                     type: string
+ *                     description: ID вопроса
+ *                   questionText:
+ *                     type: string
+ *                     description: Текст вопроса
+ *                   options:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         text:
+ *                           type: string
+ *                           description: Текст варианта ответа
+ *                         isCorrect:
+ *                           type: boolean
+ *                           description: Является ли вариант правильным
+ *                   correctAnswer:
+ *                     type: string
+ *                     description: Правильный ответ
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
 router.post('/marafon', 
   isAuthenticated,
   examController.marafon
