@@ -10,10 +10,26 @@ class ExamController {
       next(error);
     }
   }
-  async startExam(req, res, next) {
+  async selectTicket(req, res, next) {
     try {
       const { userId } = req.body;
-      const exam = await examService.createExam(userId);
+      if (!userId) {
+        throw new ApiError(400, 'ID пользователя обязателен');
+      }
+      const result = await examService.selectTicket(userId);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async startExam(req, res, next) {
+    try {
+      const { userId, ticketNumber } = req.body;
+      if (!ticketNumber) {
+        throw new ApiError(400, 'Номер билета обязателен');
+      }
+      const exam = await examService.createExam(userId, ticketNumber);
       res.json(exam);
     } catch (error) {
       next(error);

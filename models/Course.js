@@ -17,7 +17,6 @@ const CourseSchema = new mongoose.Schema({
   description: { type: String, required: true },
   category: {
     type: String,
-    enum: ['ПДД', 'Парковка'], // Только указанные курсы
     required: true
   },
   lessons: [LessonSchema],

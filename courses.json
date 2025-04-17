@@ -1,0 +1,37 @@
+[
+  {
+    "title": "Онлайн курс",
+    "description": "Полное руководство по онлайн обучению",
+    "category": "Обучение",
+    "lessons": [
+      {
+        "title": "Введение",
+        "description": "Краткий обзор курса",
+        "videoUrl": "/videos/online/intro.mp4",
+        "order": 1,
+        "additionalFiles": []
+      },
+      {
+        "title": "Первый шаг",
+        "description": "С чего начать обучение",
+        "videoUrl": "/videos/online/step1.mp4",
+        "order": 2,
+        "additionalFiles": []
+      }
+    ]
+  },
+  {
+    "title": "Курс по парковке",
+    "description": "Обучение парковке в городе",
+    "category": "Вождение",
+    "lessons": [
+      {
+        "title": "Параллельная парковка",
+        "description": "Как правильно парковаться параллельно",
+        "videoUrl": "/videos/parking/parallel.mp4",
+        "order": 1,
+        "additionalFiles": []
+      }
+    ]
+  }
+]

@@ -21,31 +21,70 @@ class ExamService {
       throw new Error(`Ошибка при получении вопросов: ${error.message}`);
     }
   }
-  async createExam(userId) {
+  async selectTicket(userId) {
     try {
       // Получаем все существующие билеты
       const tickets = await Ticket.find({}, 'number');
       if (tickets.length === 0) {
         throw new Error('В базе данных нет билетов');
       }
-  
-      // Выбираем случайный билет из существующих
+
+      // Выбираем случайный билет
       const randomIndex = Math.floor(Math.random() * tickets.length);
       const ticketNumber = tickets[randomIndex].number;
-      const ticket = await Ticket.findOne({ number: ticketNumber });
-  
-      if (!ticket) {
-        throw new Error('Билет не найден'); // Это не должно произойти, но оставим для безопасности
+
+      // Получаем последний экзамен пользователя
+      const lastExam = await Exam.findOne({ userId })
+        .sort({ startTime: -1 }) // Сортировка по времени начала (последний)
+        .lean();
+
+      let lastExamResult = null;
+      if (lastExam) {
+        const ticket = await Ticket.findOne({ number: lastExam.ticketNumber });
+        const extraQuestions = await ExtraQuestion.find({
+          _id: { $in: lastExam.extraQuestions.map(q => q.questionId) }
+        });
+
+        // Формируем статистику последнего экзамена
+        const totalQuestions = lastExam.questions.length + lastExam.extraQuestions.length;
+        const correctAnswers = lastExam.questions.filter(q => q.isCorrect).length +
+          lastExam.extraQuestions.filter(q => q.isCorrect).length;
+
+        lastExamResult = {
+          examId: lastExam._id,
+          ticketNumber: lastExam.ticketNumber,
+          status: lastExam.status,
+          statistics: {
+            totalQuestions,
+            correctAnswers,
+            mistakes: lastExam.mistakes,
+            timeSpent: lastExam.startTime ? Date.now() - new Date(lastExam.startTime).getTime() : 0
+          }
+        };
       }
-  
-      // Формируем список вопросов для экзамена
+
+      return {
+        ticketNumber,
+        lastExamResult
+      };
+    } catch (error) {
+      throw new Error(`Ошибка при выборе билета: ${error.message}`);
+    }
+  }
+
+  async createExam(userId, ticketNumber) {
+    try {
+      const ticket = await Ticket.findOne({ number: ticketNumber });
+      if (!ticket) {
+        throw new Error('Билет не найден');
+      }
+
       const examQuestions = ticket.questions.map((question) => ({
         questionId: question._id,
         userAnswer: null,
         isCorrect: null
       }));
-  
-      // Создаем новый экзамен
+
       const exam = new Exam({
         userId,
         ticketNumber,
@@ -54,9 +93,9 @@ class ExamService {
         mistakes: 0,
         status: 'in_progress',
         startTime: new Date(),
-        timeLimit: 20 * 60 * 1000 // 20 минут
+        timeLimit: 20 * 60 * 1000
       });
-  
+
       await exam.save();
       return exam;
     } catch (error) {

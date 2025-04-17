@@ -54,9 +54,9 @@ router.post('/marafon',
 
 /**
  * @swagger
- * /api/exam/start:
+ * /api/exam/select-ticket:
  *   post:
- *     summary: Начать экзамен с автоматически выбранным билетом
+ *     summary: Выбрать случайный билет и получить результат последнего экзамена
  *     tags: [Exam]
  *     security:
  *       - bearerAuth: []
@@ -73,8 +73,85 @@ router.post('/marafon',
  *                 type: string
  *                 description: ID пользователя
  *     responses:
+ *       200:
+ *         description: Номер случайного билета и результат последнего экзамена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ticketNumber:
+ *                   type: integer
+ *                   description: Номер выбранного билета
+ *                 lastExamResult:
+ *                   type: object
+ *                   nullable: true
+ *                   description: Результат последнего экзамена (null, если экзаменов не было)
+ *                   properties:
+ *                     examId:
+ *                       type: string
+ *                       description: ID экзамена
+ *                     ticketNumber:
+ *                       type: integer
+ *                       description: Номер билета последнего экзамена
+ *                     status:
+ *                       type: string
+ *                       enum: ['in_progress', 'passed', 'failed']
+ *                       description: Статус экзамена
+ *                     statistics:
+ *                       type: object
+ *                       properties:
+ *                         totalQuestions:
+ *                           type: integer
+ *                           description: Общее количество вопросов
+ *                         correctAnswers:
+ *                           type: integer
+ *                           description: Количество правильных ответов
+ *                         mistakes:
+ *                           type: integer
+ *                           description: Количество ошибок
+ *                         timeSpent:
+ *                           type: integer
+ *                           description: Время, затраченное на экзамен (в миллисекундах)
+ *       400:
+ *         description: Неверный запрос
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.post('/select-ticket',
+  isAuthenticated,
+  examController.selectTicket
+);
+
+/**
+ * @swagger
+ * /api/exam/start:
+ *   post:
+ *     summary: Начать экзамен с указанным билетом
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - ticketNumber
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: ID пользователя
+ *               ticketNumber:
+ *                 type: integer
+ *                 description: Номер выбранного билета
+ *     responses:
  *       201:
- *         description: Экзамен начат с случайным билетом
+ *         description: Экзамен начат
  *         content:
  *           application/json:
  *             schema:
@@ -88,7 +165,7 @@ router.post('/marafon',
  *                   description: ID пользователя
  *                 ticketNumber:
  *                   type: integer
- *                   description: Номер случайного выбранного билета
+ *                   description: Номер выбранного билета
  *                 questions:
  *                   type: array
  *                   items:
