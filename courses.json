@@ -7,14 +7,14 @@
       {
         "title": "Введение",
         "description": "Краткий обзор курса",
-        "videoUrl": "/videos/online/intro.mp4",
+        "videoUrl": ["/videos/online/intro.mp4"],
         "order": 1,
         "additionalFiles": []
       },
       {
         "title": "Первый шаг",
         "description": "С чего начать обучение",
-        "videoUrl": "/videos/online/step1.mp4",
+        "videoUrl": ["/videos/online/step1.mp4"],
         "order": 2,
         "additionalFiles": []
       }
@@ -28,7 +28,7 @@
       {
         "title": "Параллельная парковка",
         "description": "Как правильно парковаться параллельно",
-        "videoUrl": "/videos/parking/parallel.mp4",
+        "videoUrl": ["/videos/parking/parallel.mp4"],
         "order": 1,
         "additionalFiles": []
       }

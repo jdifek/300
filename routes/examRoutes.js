@@ -6,51 +6,231 @@ const { isAuthenticated } = require('../middleware/auth');
 
 /**
  * @swagger
- * /api/exam/marafon:
+ * /api/exam/marathon/start:
+ *   post:
+ *     summary: Начать марафонский экзамен
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: ID пользователя
+ *     responses:
+ *       201:
+ *         description: Марафонский экзамен начат
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 exam:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID марафонского экзамена
+ *                     userId:
+ *                       type: string
+ *                       description: ID пользователя
+ *                     questions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: string
+ *                             description: ID вопроса
+ *                           userAnswer:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: Ответ пользователя
+ *                           isCorrect:
+ *                             type: boolean
+ *                             nullable: true
+ *                             description: Правильность ответа
+ *                     mistakes:
+ *                       type: integer
+ *                       description: Количество ошибок
+ *                     status:
+ *                       type: string
+ *                       enum: ['in_progress', 'completed']
+ *                       description: Статус марафона
+ *                     startTime:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Время начала марафона
+ *                     completedQuestions:
+ *                       type: integer
+ *                       description: Количество отвеченных вопросов
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       questionText:
+ *                         type: string
+ *                         description: Текст вопроса
+ *                       options:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             text:
+ *                               type: string
+ *                               description: Текст варианта ответа
+ *                       category:
+ *                         type: string
+ *                         description: Категория вопроса
+ *       400:
+ *         description: Неверный запрос
+ *       401:
+ *         description: Не авторизован
+ */
+router.post('/marathon/start',
+  isAuthenticated,
+  examController.startMarathon
+);
+
+/**
+ * @swagger
+ * /api/exam/marathon/{examId}/answer:
+ *   post:
+ *     summary: Отправить ответ на вопрос марафона
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: examId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID марафонского экзамена
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - questionIndex
+ *               - userAnswer
+ *             properties:
+ *               questionIndex:
+ *                 type: integer
+ *                 description: Индекс вопроса
+ *               userAnswer:
+ *                 type: integer
+ *                 description: Ответ пользователя (индекс варианта ответа)
+ *     responses:
+ *       200:
+ *         description: Ответ принят
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: ID марафонского экзамена
+ *                 userId:
+ *                   type: string
+ *                   description: ID пользователя
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       userAnswer:
+ *                         type: integer
+ *                         nullable: true
+ *                         description: Ответ пользователя
+ *                       isCorrect:
+ *                         type: boolean
+ *                         nullable: true
+ *                         description: Правильность ответа
+ *                 mistakes:
+ *                   type: integer
+ *                   description: Количество ошибок
+ *                 status:
+ *                   type: string
+ *                   enum: ['in_progress', 'completed']
+ *                   description: Статус марафона
+ *                 startTime:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Время начала марафона
+ *                 completedQuestions:
+ *                   type: integer
+ *                   description: Количество отвеченных вопросов
+ *       400:
+ *         description: Неверный запрос
+ *       401:
+ *         description: Не авторизован
+ *       404:
+ *         description: Экзамен не найден
+ */
+router.post('/marathon/:examId/answer',
+  isAuthenticated,
+  validateAnswer,
+  examController.submitMarathonAnswer
+);
+
+/**
+ * @swagger
+ * /api/exam/marathon/progress:
  *   get:
- *     summary: Получить все вопросы и ответы всех билетов
+ *     summary: Получить прогресс марафонского экзамена
  *     tags: [Exam]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Список всех вопросов с вариантами ответов и правильными ответами
+ *         description: Прогресс марафона
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   questionId:
- *                     type: string
- *                     description: ID вопроса
- *                   questionText:
- *                     type: string
- *                     description: Текст вопроса
- *                   options:
- *                     type: array
- *                     items:
- *                       type: object
- *                       properties:
- *                         text:
- *                           type: string
- *                           description: Текст варианта ответа
- *                         isCorrect:
- *                           type: boolean
- *                           description: Является ли вариант правильным
- *                   correctAnswer:
- *                     type: string
- *                     description: Правильный ответ
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: ['not_started', 'in_progress', 'completed']
+ *                   description: Статус марафона
+ *                 totalQuestions:
+ *                   type: integer
+ *                   description: Общее количество вопросов
+ *                 progress:
+ *                   type: integer
+ *                   description: Процент правильных ответов
+ *                 correctAnswers:
+ *                   type: integer
+ *                   description: Количество правильных ответов
+ *                 mistakes:
+ *                   type: integer
+ *                   description: Количество ошибок
  *       401:
  *         description: Не авторизован
- *       500:
- *         description: Ошибка сервера
  */
-router.post('/marafon', 
+router.get('/marathon/progress',
   isAuthenticated,
-  examController.marafon
-)
+  examController.getMarathonProgress
+);
+
 
 /**
  * @swagger

@@ -3,6 +3,141 @@ const Ticket = require('../models/Ticket');
 const ExtraQuestion = require('../models/ExtraQuestion');
 
 class ExamService {
+  // Получить все вопросы для марафона (без правильных ответов)
+  async getMarathonQuestions() {
+    try {
+      const tickets = await Ticket.find().lean();
+      const allQuestions = tickets.flatMap(ticket =>
+        ticket.questions.map(question => ({
+          questionId: question._id,
+          questionText: question.text,
+          options: question.options.map(opt => ({ text: opt.text })), // Исключаем isCorrect
+          category: question.category
+        }))
+      );
+      return allQuestions;
+    } catch (error) {
+      throw new Error(`Ошибка при получении вопросов марафона: ${error.message}`);
+    }
+  }
+
+  // Создать марафонский экзамен
+  async createMarathonExam(userId) {
+    try {
+      const questions = await this.getMarathonQuestions();
+      if (questions.length === 0) {
+        throw new Error('Вопросы для марафона не найдены');
+      }
+
+      // Проверяем, есть ли активный марафон
+      const existingMarathon = await MarathonExam.findOne({ userId, status: 'in_progress' });
+      if (existingMarathon) {
+        return {
+          exam: existingMarathon,
+          questions
+        };
+      }
+
+      const marathonExam = new MarathonExam({
+        userId,
+        questions: questions.map(q => ({
+          questionId: q.questionId,
+          userAnswer: null,
+          isCorrect: null
+        })),
+        mistakes: 0,
+        status: 'in_progress',
+        startTime: new Date(),
+        completedQuestions: 0
+      });
+
+      await marathonExam.save();
+      return {
+        exam: marathonExam,
+        questions
+      };
+    } catch (error) {
+      throw new Error(`Ошибка при создании марафонского экзамена: ${error.message}`);
+    }
+  }
+
+  // Обработать ответ в марафонском экзамене
+  async processMarathonAnswer(examId, questionIndex, userAnswer) {
+    try {
+      const marathonExam = await MarathonExam.findById(examId);
+      if (!marathonExam) {
+        throw new Error('Марафонский экзамен не найден');
+      }
+
+      const question = marathonExam.questions[questionIndex];
+      if (!question) {
+        throw new Error('Вопрос не найден');
+      }
+
+      // Проверяем, не отвечен ли уже вопрос
+      if (question.userAnswer !== null) {
+        throw new Error('На этот вопрос уже дан ответ');
+      }
+
+      // Получаем данные вопроса из билета
+      const ticket = await Ticket.findOne({ 'questions._id': question.questionId });
+      const questionData = ticket.questions.find(q => q._id.toString() === question.questionId.toString());
+
+      if (!questionData) {
+        throw new Error('Данные вопроса не найдены');
+      }
+
+      const correctAnswer = questionData.options.findIndex(opt => opt.isCorrect);
+      question.userAnswer = userAnswer;
+      question.isCorrect = userAnswer === correctAnswer;
+
+      if (!question.isCorrect) {
+        marathonExam.mistakes += 1;
+      }
+
+      marathonExam.completedQuestions += 1;
+
+      // Проверяем, завершен ли марафон
+      if (marathonExam.completedQuestions === marathonExam.questions.length) {
+        marathonExam.status = 'completed';
+      }
+
+      await marathonExam.save();
+      return marathonExam;
+    } catch (error) {
+      throw new Error(`Ошибка при обработке ответа марафона: ${error.message}`);
+    }
+  }
+
+  // Получить прогресс марафона
+  async getMarathonProgress(userId) {
+    try {
+      const marathonExam = await MarathonExam.findOne({ userId, status: 'in_progress' });
+      if (!marathonExam) {
+        return {
+          status: 'not_started',
+          totalQuestions: 800,
+          progress: 0,
+          correctAnswers: 0,
+          mistakes: 0
+        };
+      }
+
+      const totalQuestions = marathonExam.questions.length;
+      const correctAnswers = marathonExam.questions.filter(q => q.isCorrect).length;
+      const progress = Math.round((correctAnswers / totalQuestions) * 100);
+
+      return {
+        status: marathonExam.status,
+        totalQuestions,
+        progress,
+        correctAnswers,
+        mistakes: marathonExam.mistakes
+      };
+    } catch (error) {
+      throw new Error(`Ошибка при получении прогресса марафона: ${error.message}`);
+    }
+  }
   async getAnswers() {
     try {
       const tickets = await Ticket.find().lean();
@@ -21,52 +156,15 @@ class ExamService {
       throw new Error(`Ошибка при получении вопросов: ${error.message}`);
     }
   }
-  async selectTicket(userId) {
+  async selectTicket() {
     try {
-      // Получаем все существующие билеты
       const tickets = await Ticket.find({}, 'number');
       if (tickets.length === 0) {
         throw new Error('В базе данных нет билетов');
       }
 
-      // Выбираем случайный билет
       const randomIndex = Math.floor(Math.random() * tickets.length);
-      const ticketNumber = tickets[randomIndex].number;
-
-      // Получаем последний экзамен пользователя
-      const lastExam = await Exam.findOne({ userId })
-        .sort({ startTime: -1 }) // Сортировка по времени начала (последний)
-        .lean();
-
-      let lastExamResult = null;
-      if (lastExam) {
-        const ticket = await Ticket.findOne({ number: lastExam.ticketNumber });
-        const extraQuestions = await ExtraQuestion.find({
-          _id: { $in: lastExam.extraQuestions.map(q => q.questionId) }
-        });
-
-        // Формируем статистику последнего экзамена
-        const totalQuestions = lastExam.questions.length + lastExam.extraQuestions.length;
-        const correctAnswers = lastExam.questions.filter(q => q.isCorrect).length +
-          lastExam.extraQuestions.filter(q => q.isCorrect).length;
-
-        lastExamResult = {
-          examId: lastExam._id,
-          ticketNumber: lastExam.ticketNumber,
-          status: lastExam.status,
-          statistics: {
-            totalQuestions,
-            correctAnswers,
-            mistakes: lastExam.mistakes,
-            timeSpent: lastExam.startTime ? Date.now() - new Date(lastExam.startTime).getTime() : 0
-          }
-        };
-      }
-
-      return {
-        ticketNumber,
-        lastExamResult
-      };
+      return tickets[randomIndex].number;
     } catch (error) {
       throw new Error(`Ошибка при выборе билета: ${error.message}`);
     }

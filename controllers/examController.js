@@ -10,6 +10,40 @@ class ExamController {
       next(error);
     }
   }
+
+  async startMarathon(req, res, next) {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        throw new ApiError(400, 'ID пользователя обязателен');
+      }
+      const result = await examService.createMarathonExam(userId);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async submitMarathonAnswer(req, res, next) {
+    try {
+      const { examId } = req.params;
+      const { questionIndex, userAnswer } = req.body;
+      const marathonExam = await examService.processMarathonAnswer(examId, questionIndex, userAnswer);
+      res.json(marathonExam);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMarathonProgress(req, res, next) {
+    try {
+      const { userId } = req.user; // Предполагаем, что userId доступен через middleware
+      const progress = await examService.getMarathonProgress(userId);
+      res.json(progress);
+    } catch (error) {
+      next(error);
+    }
+  }
   async selectTicket(req, res, next) {
     try {
       const { userId } = req.body;

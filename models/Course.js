@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const LessonSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  videoUrl: { type: String, required: true },
+  videoUrl: [{ type: String, required: true }],
   additionalFiles: [{
     name: { type: String },
     url: { type: String }
