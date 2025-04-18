@@ -1,5 +1,6 @@
 const Exam = require('../models/Exam');
 const Ticket = require('../models/Ticket');
+const MarathonExam = require('../models/MarathonExam');
 const ExtraQuestion = require('../models/ExtraQuestion');
 
 class ExamService {
