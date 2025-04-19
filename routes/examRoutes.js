@@ -953,7 +953,7 @@ router.get('/:examId/results',
  * @swagger
  * /api/exam/questions:
  *   get:
- *     summary: Получить 5 вопросов по выбранной теме
+ *     summary: Получить все вопросы по выбранной категории
  *     tags: [Exam]
  *     security:
  *       - bearerAuth: []
@@ -966,13 +966,37 @@ router.get('/:examId/results',
  *         description: Категория вопросов
  *     responses:
  *       200:
- *         description: Список из 5 вопросов
+ *         description: Список всех вопросов по категории
  *       401:
  *         description: Не авторизован
  *       500:
  *         description: Ошибка сервера
  */
-router.get('/', isAuthenticated, examController.get5question);
+router.get('/questions', isAuthenticated, examController.getAllQuestionsByCategory);
 
+/**
+ * @swagger
+ * /api/exam/questions/random:
+ *   get:
+ *     summary: Получить 5 случайных вопросов по выбранной категории
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Категория вопросов
+ *     responses:
+ *       200:
+ *         description: Список из 5 случайных вопросов по категории
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/questions/random', isAuthenticated, examController.getRandomQuestions);
 
 module.exports = router;

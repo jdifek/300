@@ -1,4 +1,3 @@
-// models/User.js
 const mongoose = require('mongoose');
 
 const LessonProgressSchema = new mongoose.Schema({
@@ -14,6 +13,15 @@ const CourseProgressSchema = new mongoose.Schema({
   lessons: [LessonProgressSchema]
 });
 
+const TicketProgressSchema = new mongoose.Schema({
+  ticketNumber: { type: Number, required: true },
+  isCompleted: { type: Boolean, default: false },
+  mistakes: { type: Number, default: 0 },
+  correctAnswers: { type: Number, default: 0 },
+  totalQuestions: { type: Number, default: 0 },
+  completedAt: { type: Date }
+});
+
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, trim: true },
   telegramId: { type: String, required: true, unique: true, sparse: true },
@@ -23,7 +31,7 @@ const UserSchema = new mongoose.Schema({
     ticketsCompleted: { type: Number, default: 0 },
     lessonsCompleted: { type: Number, default: 0 },
     totalTimeSpent: { type: Number, default: 0 },
-    mistakes: { type: Number, default: 0 } // Добавлено поле для ошибок
+    mistakes: { type: Number, default: 0 }
   },
   subscription: {
     type: { type: String, enum: ['free', 'premium'], default: 'free' },
@@ -31,10 +39,11 @@ const UserSchema = new mongoose.Schema({
     autoRenew: { type: Boolean, default: false }
   },
   coursesProgress: [CourseProgressSchema],
+  ticketsProgress: [TicketProgressSchema], // Новое поле для прогресса по билетам
   refreshToken: { type: String },
   firstLogin: { type: Date, default: Date.now },
   subscribedToChannel: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('User', UserSchema); 
+module.exports = mongoose.model('User', UserSchema);
