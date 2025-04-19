@@ -8,6 +8,7 @@ const userRoutes = require('./routes/userRoutes');
 const courseRoutes = require('./routes/courseRoutes'); // Новый роут
 const ticketRoutes = require('./routes/ticketRoutes');
 const examRoutes = require('./routes/examRoutes');
+const notificationRoutes = require('./routes/notificationRoute.js');
 const app = express();
 
 app.use(express.json());
@@ -50,7 +51,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/exam', examRoutes);
-app.use('/api/notification', examRoutes);
+app.use('/api/notification', notificationRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
