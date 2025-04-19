@@ -7,60 +7,59 @@ class ExamService {
   // Получить все вопросы для марафона (без правильных ответов)
   async getMarathonQuestions() {
     try {
+      // Получаем все билеты с вопросами
       const tickets = await Ticket.find().lean();
-      const allQuestions = tickets.flatMap(ticket =>
-        ticket.questions.map(question => ({
-          questionId: question._id,
-          questionText: question.text,
-          options: question.options.map(opt => ({ text: opt.text })), // Исключаем isCorrect
-          category: question.category
-        }))
-      );
+  
+      if (!tickets.length) {
+        return []; // Нет билетов — возвращаем пустой массив
+      }
+  
+      // Достаём все вопросы из каждого билета и объединяем в один массив
+      const allQuestions = tickets.flatMap(ticket => ticket.questions || []);
+  
       return allQuestions;
     } catch (error) {
       throw new Error(`Ошибка при получении вопросов марафона: ${error.message}`);
     }
   }
+  
 
   // Создать марафонский экзамен
   async createMarathonExam(userId) {
     try {
-      const questions = await this.getMarathonQuestions();
-      if (questions.length === 0) {
-        throw new Error('Вопросы для марафона не найдены');
-      }
+        const questions = await this.getMarathonQuestions(); // Получаем вопросы
+        if (questions.length === 0) {
+            throw new Error('Вопросы для марафона не найдены');
+        }
+        console.log('Questions:', questions); // Логируем вопросы после получения
 
-      // Проверяем, есть ли активный марафон
-      const existingMarathon = await MarathonExam.findOne({ userId, status: 'in_progress' });
-      if (existingMarathon) {
+        // Проверяем, есть ли активный марафон
+        const existingMarathon = await MarathonExam.findOne({ userId, status: 'in_progress' });
+        if (existingMarathon) {
+            return {
+                exam: existingMarathon,
+                questions
+            };
+        }
+
+        const marathonExam = new MarathonExam({
+            userId,
+        
+            mistakes: 0,
+            status: 'in_progress',
+            startTime: new Date(),
+            completedQuestions: 0
+        });
+
+        await marathonExam.save();
         return {
-          exam: existingMarathon,
-          questions
+            exam: marathonExam,
+            questions // Возвращаем вопросы вместе с экзаменом
         };
-      }
-
-      const marathonExam = new MarathonExam({
-        userId,
-        questions: questions.map(q => ({
-          questionId: q.questionId,
-          userAnswer: null,
-          isCorrect: null
-        })),
-        mistakes: 0,
-        status: 'in_progress',
-        startTime: new Date(),
-        completedQuestions: 0
-      });
-
-      await marathonExam.save();
-      return {
-        exam: marathonExam,
-        questions
-      };
     } catch (error) {
-      throw new Error(`Ошибка при создании марафонского экзамена: ${error.message}`);
+        throw new Error(`Ошибка при создании марафонского экзамена: ${error.message}`);
     }
-  }
+}
 
   // Обработать ответ в марафонском экзамене
   async processMarathonAnswer(examId, questionIndex, userAnswer) {
