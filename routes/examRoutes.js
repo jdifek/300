@@ -949,4 +949,30 @@ router.get('/:examId/results',
   examController.getResults
 );
 
+/**
+ * @swagger
+ * /api/exam/questions:
+ *   get:
+ *     summary: Получить 5 вопросов по выбранной теме
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Категория вопросов
+ *     responses:
+ *       200:
+ *         description: Список из 5 вопросов
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/', isAuthenticated, examController.get5question);
+
+
 module.exports = router;

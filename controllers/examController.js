@@ -1,7 +1,27 @@
 const examService = require('../services/examService');
 const ApiError = require('../exceptions/api-error');
 
+
 class ExamController {
+  async get5question (req, res) {
+    try {
+      const category = req.query.category; // Получаем категорию из параметров запроса
+  
+      // Находим билеты, которые соответствуют выбранной категории
+      const tickets = await Ticket.find({ 'questions.category': category }).lean();
+  
+      // Извлекаем 5 вопросов из найденных билетов
+      const questions = tickets.flatMap(ticket => 
+        ticket.questions
+          .filter(question => question.category === category) // Фильтруем по категории
+          .slice(0, 5) // Берем только первые 5 вопросов
+      ).slice(0, 5); // Если вопросов больше 5, берем только 5
+  
+      res.json(questions); // Возвращаем вопросы
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
   async marafon(req, res, next) {
     try {
       const answers = await examService.getAnswers();

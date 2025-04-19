@@ -1,6 +1,7 @@
 // controllers/courseController.js
 const Course = require('../models/Course');
 const User = require('../models/User');
+const Ticket = require('../models/Ticket'); // Импортируйте модель Ticket
 
 exports.getCourses = async (req, res) => {
   try {

@@ -3,6 +3,7 @@ const router = express.Router();
 const { isAuthenticated } = require('../middleware/auth.js');
 const pathwayController = require('../controllers/pathwayController.js');
 
+
 /**
  * @swagger
  * /api/pathway:
