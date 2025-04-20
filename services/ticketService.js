@@ -12,9 +12,14 @@ class TicketService {
     }
   }
 
-  async getTicketByNumber(number) {
+  async getTicketByNumber(ticketNumber) {
     try {
-      const ticket = await Ticket.findOne({ number }).populate('questions');
+      // Проверяем, что ticketNumber является числом
+      if (isNaN(ticketNumber)) {
+        throw new Error('Неверный номер билета');
+      }
+
+      const ticket = await Ticket.findOne({ number: ticketNumber }).populate('questions');
       if (!ticket) {
         throw ApiError.NotFound('Билет не найден');
       }

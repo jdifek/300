@@ -1,5 +1,7 @@
 const examService = require('../services/examService');
 const ApiError = require('../exceptions/api-error');
+const Ticket = require('../models/Ticket');
+const User = require('../models/User');
 
 
 class ExamController {
@@ -168,6 +170,34 @@ class ExamController {
       const randomQuestions = allQuestions.sort(() => 0.5 - Math.random()).slice(0, 5);
 
       res.json(randomQuestions); // Возвращаем случайные вопросы
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getNewQuestions(req, res) {
+    try {
+      const userId = req.user.id; // Получаем ID пользователя из запроса
+      const tickets = await Ticket.find().lean(); // Получаем все билеты
+
+      // Получаем прогресс пользователя по билетам
+      const user = await User.findById(userId).lean();
+      const completedTicketNumbers = user.ticketsProgress.map(ticket => ticket.ticketNumber); // Номера билетов, которые пользователь прошел
+
+      // Извлекаем новые вопросы
+      const newQuestions = tickets.flatMap(ticket => {
+        if (!completedTicketNumbers.includes(ticket.number)) {
+          return ticket.questions.map(question => ({
+            questionId: question._id,
+            questionText: question.text,
+            options: question.options.map(opt => ({ text: opt.text })), // Исключаем isCorrect
+            category: question.category
+          }));
+        }
+        return [];
+      });
+
+      res.json(newQuestions); // Возвращаем новые вопросы
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

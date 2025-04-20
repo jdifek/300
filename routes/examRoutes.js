@@ -999,4 +999,49 @@ router.get('/questions', isAuthenticated, examController.getAllQuestionsByCatego
  */
 router.get('/questions/random', isAuthenticated, examController.getRandomQuestions);
 
+/**
+ * @swagger
+ * /api/exam/questions/new:
+ *   get:
+ *     summary: Получить новые вопросы, которые пользователь не проходил
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список новых вопросов
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   questionId:
+ *                     type: string
+ *                     description: ID вопроса
+ *                   questionText:
+ *                     type: string
+ *                     description: Текст вопроса
+ *                   options:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         text:
+ *                           type: string
+ *                           description: Текст варианта ответа
+ *                         isCorrect:
+ *                           type: boolean
+ *                           description: Является ли вариант правильным
+ *                   category:
+ *                     type: string
+ *                     description: Категория вопроса
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/questions/new', isAuthenticated, examController.getNewQuestions);
+
 module.exports = router;

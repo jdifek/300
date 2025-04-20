@@ -6,6 +6,65 @@ const { isAuthenticated } = require('../middleware/auth');
 
 /**
  * @swagger
+ * /api/tickets/progress:
+ *   get:
+ *     summary: Получить прогресс пользователя по билетам
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Прогресс пользователя по билетам
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalTickets:
+ *                   type: integer
+ *                   description: Общее количество билетов
+ *                 ticketsCompleted:
+ *                   type: integer
+ *                   description: Количество пройденных билетов
+ *                 totalMistakes:
+ *                   type: integer
+ *                   description: Общее количество ошибок
+ *                 ticketsProgress:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       ticketNumber:
+ *                         type: integer
+ *                         description: Номер билета
+ *                       isCompleted:
+ *                         type: boolean
+ *                         description: Завершён ли билет
+ *                       mistakes:
+ *                         type: integer
+ *                         description: Количество ошибок
+ *                       correctAnswers:
+ *                         type: integer
+ *                         description: Количество правильных ответов
+ *                       totalQuestions:
+ *                         type: integer
+ *                         description: Общее количество вопросов
+ *                       completedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Дата завершения
+ *                 nextTicket:
+ *                   type: integer
+ *                   description: Номер следующего билета для прохождения
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/progress', isAuthenticated, ticketController.getTicketProgress);
+
+/**
+ * @swagger
  * /api/tickets:
  *   get:
  *     summary: Получить все билеты
@@ -442,64 +501,5 @@ router.post('/:number/start', isAuthenticated, ticketController.startTicket);
  *         description: Ошибка сервера
  */
 router.post('/:number/submit', isAuthenticated, ticketController.submitTicket);
-
-/**
- * @swagger
- * /api/tickets/progress:
- *   get:
- *     summary: Получить прогресс пользователя по билетам
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Прогресс пользователя по билетам
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalTickets:
- *                   type: integer
- *                   description: Общее количество билетов
- *                 ticketsCompleted:
- *                   type: integer
- *                   description: Количество пройденных билетов
- *                 totalMistakes:
- *                   type: integer
- *                   description: Общее количество ошибок
- *                 ticketsProgress:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       ticketNumber:
- *                         type: integer
- *                         description: Номер билета
- *                       isCompleted:
- *                         type: boolean
- *                         description: Завершён ли билет
- *                       mistakes:
- *                         type: integer
- *                         description: Количество ошибок
- *                       correctAnswers:
- *                         type: integer
- *                         description: Количество правильных ответов
- *                       totalQuestions:
- *                         type: integer
- *                         description: Общее количество вопросов
- *                       completedAt:
- *                         type: string
- *                         format: date-time
- *                         description: Дата завершения
- *                 nextTicket:
- *                   type: integer
- *                   description: Номер следующего билета для прохождения
- *       401:
- *         description: Не авторизован
- *       500:
- *         description: Ошибка сервера
- */
-router.get('/progress', isAuthenticated, ticketController.getTicketProgress);
 
 module.exports = router;
