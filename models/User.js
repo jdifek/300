@@ -19,7 +19,14 @@ const TicketProgressSchema = new mongoose.Schema({
   mistakes: { type: Number, default: 0 },
   correctAnswers: { type: Number, default: 0 },
   totalQuestions: { type: Number, default: 0 },
-  completedAt: { type: Date }
+  completedAt: { type: Date },
+  answeredQuestions: [
+    {
+      questionId: { type: String, required: true },
+      selectedOption: { type: String, required: true },
+      isCorrect: { type: Boolean, required: true }
+    }
+  ]
 });
 
 const UserSchema = new mongoose.Schema({
