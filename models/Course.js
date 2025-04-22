@@ -9,7 +9,8 @@ const LessonSchema = new mongoose.Schema({
     name: { type: String },
     url: { type: String }
   }],
-  order: { type: Number, required: true }
+  order: { type: Number, required: true },
+  thumbnail: { type: String, default: '' }
 });
 
 const CourseSchema = new mongoose.Schema({

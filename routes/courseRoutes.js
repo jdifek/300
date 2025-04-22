@@ -282,6 +282,11 @@ router.get('/:courseId', isAuthenticated, courseController.getCourse);
  */
 router.get('/:courseId/lessons/:lessonId', isAuthenticated, courseController.getLesson);
 
+router.post(
+  '/lessons/:lessonId/thumbnail',
+  courseController.upload.single('thumbnail'),
+  courseController.updateLessonThumbnail
+);
 /**
  * @swagger
  * /api/courses/{courseId}/lessons/{lessonId}/complete:

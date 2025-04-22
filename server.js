@@ -11,6 +11,8 @@ const examRoutes = require('./routes/examRoutes');
 const pathwayRoutes = require('./routes/examPathways.js');
 const notificationRoutes = require('./routes/notificationRoute.js');
 const app = express();
+const path = require('path');
+
 
 app.use(express.json());
 app.use(cors());
@@ -47,6 +49,7 @@ mongoose.connect(process.env.MONGODB_URI, {
   useUnifiedTopology: true
 }).then(() => {console.log('✅ MongoDB connected')})
   .catch(err => console.error('❌ MongoDB connection error:', err));
+  app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
