@@ -56,8 +56,10 @@ async function importCourses(jsonData) {
               videoUrl: lesson.videoUrl,
               additionalFiles: lesson.additionalFiles,
               order: lesson.order,
+              thumbnail: lesson.thumbnail
             };
           }),
+          thumbnail: course.thumbnail,
           createdAt: new Date(),
         };
         transformedData.push(transformedCourse);
