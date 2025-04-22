@@ -1,51 +1,34 @@
 const Course = require('../models/Course');
 const User = require('../models/User');
-
-exports.getCourses = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    const courses = await Course.find();
-    const coursesWithProgress = courses.map(course => {
-      const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
-      return {
-        ...course.toJSON(),
-        progress: courseProgress ? {
-          lastStudiedLesson: courseProgress.lastStudiedLesson,
-          lessonsCompleted: courseProgress.lessons.filter(l => l.isCompleted).length
-        } : { lastStudiedLesson: null, lessonsCompleted: 0 }
-      };
-    });
-
-    res.json(coursesWithProgress);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
 const mongoose = require('mongoose');
+
 
 exports.getCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
 
-    // Проверка на валидность ObjectId
     if (!mongoose.Types.ObjectId.isValid(courseId)) {
       return res.status(400).json({ message: 'Неверный ID курса' });
     }
-    console.log('🔍 courseId:', req.params.courseId);
-
 
     const user = await User.findById(req.user.id);
-    console.log('👉 Ищем курс по ID:', req.params.courseId);
-
     const course = await Course.findById(req.params.courseId);
     
-    console.log('🔍 Найденный курс:', course);
-        if (!course) return res.status(404).json({ message: 'Курс не найден' });
+    if (!course) return res.status(404).json({ message: 'Курс не найден' });
 
     let courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
     if (!courseProgress) {
-      courseProgress = { courseId: course._id, lessons: course.lessons.map(l => ({ lessonId: l._id })) };
+      courseProgress = { 
+        courseId: course._id, 
+        lastStudiedLesson: null,
+        lessons: course.lessons.map(l => ({ 
+          lessonId: l._id,
+          isCompleted: false,
+          homeworkSubmitted: false,
+          homeworkData: null,
+          isWatched: false // Задаём значение по умолчанию для нового поля
+        })) 
+      };
       user.coursesProgress.push(courseProgress);
       await user.save();
     }
@@ -72,7 +55,13 @@ exports.getLesson = async (req, res) => {
     if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
 
     const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
-    const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(lesson._id)) || { lessonId: lesson._id };
+    const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(lesson._id)) || { 
+      lessonId: lesson._id,
+      isCompleted: false,
+      homeworkSubmitted: false,
+      homeworkData: null,
+      isWatched: false // Задаём значение по умолчанию
+    };
 
     res.json({
       ...lesson.toJSON(),
@@ -177,7 +166,13 @@ exports.getNextLesson = async (req, res) => {
 
     const nextLesson = lessons[currentIndex + 1];
     const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
-    const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(nextLesson._id)) || { lessonId: nextLesson._id };
+    const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(nextLesson._id)) || { 
+      lessonId: nextLesson._id,
+      isCompleted: false,
+      homeworkSubmitted: false,
+      homeworkData: null,
+      isWatched: false // Задаём значение по умолчанию
+    };
 
     res.json({
       ...nextLesson.toJSON(),
@@ -205,11 +200,66 @@ exports.getPrevLesson = async (req, res) => {
 
     const prevLesson = lessons[currentIndex - 1];
     const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
-    const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(prevLesson._id)) || { lessonId: prevLesson._id };
+    const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(prevLesson._id)) || { 
+      lessonId: prevLesson._id,
+      isCompleted: false,
+      homeworkSubmitted: false,
+      homeworkData: null,
+      isWatched: false // Задаём значение по умолчанию
+    };
 
     res.json({
       ...prevLesson.toJSON(),
       progress: lessonProgress
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+exports.markLessonWatched = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const lesson = course.lessons.id(req.params.lessonId);
+    if (!lesson) return res.status(404).json({ message: 'Lesson not found' });
+
+    let courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
+    if (!courseProgress) {
+      courseProgress = { 
+        courseId: course._id, 
+        lastStudiedLesson: null,
+        lessons: course.lessons.map(l => ({ 
+          lessonId: l._id,
+          isCompleted: false,
+          homeworkSubmitted: false,
+          homeworkData: null,
+          isWatched: false
+        })) 
+      };
+      user.coursesProgress.push(courseProgress);
+    }
+
+    let lessonProgress = courseProgress.lessons.find(lp => lp.lessonId.equals(lesson._id));
+    if (!lessonProgress) {
+      lessonProgress = { 
+        lessonId: lesson._id,
+        isCompleted: false,
+        homeworkSubmitted: false,
+        homeworkData: null,
+        isWatched: false
+      };
+      courseProgress.lessons.push(lessonProgress);
+    }
+
+    lessonProgress.isWatched = true;
+    courseProgress.lastStudiedLesson = lesson._id; // Обновляем последний изученный урок
+    await user.save();
+
+    res.json({ 
+      message: 'Lesson marked as watched', 
+      lesson: { ...lesson.toJSON(), progress: lessonProgress } 
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -4,7 +4,8 @@ const LessonProgressSchema = new mongoose.Schema({
   lessonId: { type: mongoose.Schema.Types.ObjectId, required: true },
   isCompleted: { type: Boolean, default: false },
   homeworkSubmitted: { type: Boolean, default: false },
-  homeworkData: { type: String, default: null }
+  homeworkData: { type: String, default: null },
+  isWatched: { type: Boolean, default: false } 
 });
 
 const CourseProgressSchema = new mongoose.Schema({

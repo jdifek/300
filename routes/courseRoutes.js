@@ -89,7 +89,7 @@ const { isAuthenticated } = require('../middleware/auth');
  *       500:
  *         description: Ошибка сервера
  */
-router.get('/', isAuthenticated, courseController.getCourses);
+router.get('/', isAuthenticated, courseController.getCourse);
 
 /**
  * @swagger
@@ -633,5 +633,97 @@ router.get('/:courseId/lessons/:lessonId/next-lesson', isAuthenticated, courseCo
  *         description: Ошибка сервера
  */
 router.get('/:courseId/lessons/:lessonId/prev-lesson', isAuthenticated, courseController.getPrevLesson);
+
+/**
+ * @swagger
+ * /api/courses/{courseId}/lessons/{lessonId}/watch:
+ *   post:
+ *     summary: Отметить урок как просмотренный
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID курса
+ *       - in: path
+ *         name: lessonId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID урока
+ *     responses:
+ *       200:
+ *         description: Урок отмечен как просмотренный
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Сообщение об успешной отметке
+ *                   example: "Lesson marked as watched"
+ *                 lesson:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID урока
+ *                     title:
+ *                       type: string
+ *                       description: Название урока
+ *                     description:
+ *                       type: string
+ *                       description: Описание урока
+ *                     videoUrl:
+ *                       type: string
+ *                       description: URL видео урока
+ *                     additionalFiles:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                             description: Название файла
+ *                           url:
+ *                             type: string
+ *                             description: URL файла
+ *                       description: Дополнительные файлы урока
+ *                     order:
+ *                       type: integer
+ *                       description: Порядок урока в курсе
+ *                     progress:
+ *                       type: object
+ *                       properties:
+ *                         lessonId:
+ *                           type: string
+ *                           description: ID урока
+ *                         isCompleted:
+ *                           type: boolean
+ *                           description: Завершён ли урок
+ *                         homeworkSubmitted:
+ *                           type: boolean
+ *                           description: Отправлено ли домашнее задание
+ *                         homeworkData:
+ *                           type: string
+ *                           nullable: true
+ *                           description: Данные домашнего задания
+ *                         isWatched:
+ *                           type: boolean
+ *                           description: Просмотрен ли урок
+ *                       description: Прогресс пользователя по уроку
+ *       404:
+ *         description: Урок или курс не найден
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.post('/:courseId/lessons/:lessonId/watch', isAuthenticated, courseController.markLessonWatched);
 
 module.exports = router;
