@@ -110,7 +110,6 @@ class TicketService {
       let mistakesDelta = 0;
       const detailedResults = [];
   
-      // Проверяем, какие вопросы уже отвечены
       let ticketProgress = user.ticketsProgress.find(tp => tp.ticketNumber === number);
       if (!ticketProgress) {
         ticketProgress = {
@@ -119,7 +118,8 @@ class TicketService {
           mistakes: 0,
           correctAnswers: 0,
           totalQuestions: ticket.questions.length,
-          answeredQuestions: [], // Добавляем массив для хранения отвеченных вопросов
+          answeredQuestions: [],
+          mistakesDetails: [], // Инициализируем массив для ошибок
           completedAt: null
         };
         user.ticketsProgress.push(ticketProgress);
@@ -128,10 +128,9 @@ class TicketService {
   
       // Обрабатываем текущие ответы
       answers.forEach(answer => {
-        // Проверяем, не был ли вопрос уже отвечен
         const alreadyAnswered = ticketProgress.answeredQuestions.find(
           q => q.questionId === answer.questionId
-        ); // Это строка 225
+        );
         if (alreadyAnswered) {
           console.log(`⚠️ Вопрос ${answer.questionId} уже был отвечен ранее`);
           return;
@@ -151,6 +150,13 @@ class TicketService {
             selectedOption: answer.selectedOption,
             isCorrect: false
           });
+          // Добавляем ошибку в mistakesDetails
+          ticketProgress.mistakesDetails.push({
+            questionId: answer.questionId,
+            questionText: 'Вопрос не найден',
+            selectedOption: answer.selectedOption,
+            correctOption: 'Неизвестно'
+          });
           return;
         }
   
@@ -161,6 +167,13 @@ class TicketService {
           correctAnswersDelta++;
         } else {
           mistakesDelta++;
+          // Добавляем информацию об ошибке в mistakesDetails
+          ticketProgress.mistakesDetails.push({
+            questionId: answer.questionId,
+            questionText: question.text,
+            selectedOption: answer.selectedOption,
+            correctOption: correctOption.text
+          });
         }
   
         detailedResults.push({
@@ -232,12 +245,12 @@ class TicketService {
       if (!user) {
         throw ApiError.NotFound('Пользователь не найден');
       }
-
+  
       const allTickets = await Ticket.find().select('number');
       const totalTickets = allTickets.length;
       const ticketsCompleted = user.ticketsProgress.filter(tp => tp.isCompleted).length;
       const totalMistakes = user.stats.mistakes;
-
+  
       // Определяем следующий билет
       let nextTicket = 1;
       for (let i = 1; i <= totalTickets; i++) {
@@ -247,12 +260,23 @@ class TicketService {
           break;
         }
       }
-
+  
+      // Формируем прогресс по билетам, включая ошибки
+      const ticketsProgress = user.ticketsProgress.map(tp => ({
+        ticketNumber: tp.ticketNumber,
+        isCompleted: tp.isCompleted,
+        mistakes: tp.mistakes,
+        correctAnswers: tp.correctAnswers,
+        totalQuestions: tp.totalQuestions,
+        completedAt: tp.completedAt,
+        mistakesDetails: tp.mistakesDetails // Добавляем информацию об ошибках
+      }));
+  
       return {
         totalTickets,
         ticketsCompleted,
         totalMistakes,
-        ticketsProgress: user.ticketsProgress,
+        ticketsProgress,
         nextTicket
       };
     } catch (error) {

@@ -53,6 +53,24 @@ const { isAuthenticated } = require('../middleware/auth');
  *                         type: string
  *                         format: date-time
  *                         description: Дата завершения
+ *                       mistakesDetails:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             questionId:
+ *                               type: string
+ *                               description: ID вопроса
+ *                             questionText:
+ *                               type: string
+ *                               description: Текст вопроса
+ *                             selectedOption:
+ *                               type: string
+ *                               description: Выбранный пользователем ответ
+ *                             correctOption:
+ *                               type: string
+ *                               description: Правильный ответ
+ *                         description: Подробности о допущенных ошибках
  *                 nextTicket:
  *                   type: integer
  *                   description: Номер следующего билета для прохождения

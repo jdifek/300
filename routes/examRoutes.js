@@ -190,7 +190,6 @@ router.post('/marathon/:examId/answer',
   validateAnswer,
   examController.submitMarathonAnswer
 );
-
 /**
  * @swagger
  * /api/exam/marathon/progress:
@@ -223,6 +222,24 @@ router.post('/marathon/:examId/answer',
  *                 mistakes:
  *                   type: integer
  *                   description: Количество ошибок
+ *                 mistakesDetails:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       questionText:
+ *                         type: string
+ *                         description: Текст вопроса
+ *                       selectedOption:
+ *                         type: string
+ *                         description: Выбранный пользователем ответ
+ *                       correctOption:
+ *                         type: string
+ *                         description: Правильный ответ
+ *                   description: Подробности о допущенных ошибках
  *       401:
  *         description: Не авторизован
  */
@@ -230,7 +247,6 @@ router.get('/marathon/progress',
   isAuthenticated,
   examController.getMarathonProgress
 );
-
 
 /**
  * @swagger
@@ -772,7 +788,6 @@ router.get('/:examId/share',
   validateExamId,
   examController.getShareTemplate
 );
-
 /**
  * @swagger
  * /api/exam/{examId}/results:
@@ -920,6 +935,24 @@ router.get('/:examId/share',
  *                     extraTime:
  *                       type: integer
  *                       description: Дополнительное время (в миллисекундах)
+ *                     mistakesDetails:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: string
+ *                             description: ID вопроса
+ *                           questionText:
+ *                             type: string
+ *                             description: Текст вопроса
+ *                           selectedOption:
+ *                             type: string
+ *                             description: Выбранный пользователем ответ
+ *                           correctOption:
+ *                             type: string
+ *                             description: Правильный ответ
+ *                       description: Подробности о допущенных ошибках
  *                 statistics:
  *                   type: object
  *                   properties:

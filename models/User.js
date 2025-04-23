@@ -27,6 +27,14 @@ const TicketProgressSchema = new mongoose.Schema({
       selectedOption: { type: String, required: true },
       isCorrect: { type: Boolean, required: true }
     }
+  ],
+  mistakesDetails: [ // Новое поле для хранения подробностей об ошибках
+    {
+      questionId: { type: String, required: true },
+      questionText: { type: String, required: true },
+      selectedOption: { type: String, required: true },
+      correctOption: { type: String, required: true }
+    }
   ]
 });
 

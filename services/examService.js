@@ -62,54 +62,86 @@ class ExamService {
 }
 
   // Обработать ответ в марафонском экзамене
-  async processMarathonAnswer(examId, questionIndex, userAnswer) {
+  async processAnswer(examId, questionIndex, userAnswer) {
     try {
-      const marathonExam = await MarathonExam.findById(examId);
-      if (!marathonExam) {
-        throw new Error('Марафонский экзамен не найден');
+      const exam = await Exam.findById(examId);
+      if (!exam) {
+        throw new Error('Экзамен не найден');
       }
-
-      const question = marathonExam.questions[questionIndex];
-      if (!question) {
+  
+      // Загружаем билет и дополнительные вопросы
+      const ticket = await Ticket.findOne({ number: exam.ticketNumber });
+      const extraQuestions = await ExtraQuestion.find({
+        _id: { $in: exam.extraQuestions.map(q => q.questionId) }
+      });
+  
+      // Проверяем, не истекло ли время
+      const elapsedTime = Date.now() - exam.startTime.getTime();
+      if (elapsedTime > exam.timeLimit + exam.extraTime) {
+        exam.status = 'failed';
+        await exam.save();
+        throw new Error('Время экзамена истекло');
+      }
+  
+      // Обрабатываем ответ
+      let question;
+      let questionData;
+      if (questionIndex < exam.questions.length) {
+        question = exam.questions[questionIndex];
+        questionData = ticket.questions.find(q => q._id.toString() === question.questionId.toString());
+      } else {
+        question = exam.extraQuestions[questionIndex - exam.questions.length];
+        questionData = extraQuestions.find(q => q._id.toString() === question.questionId.toString());
+      }
+  
+      if (!questionData) {
         throw new Error('Вопрос не найден');
       }
-
-      // Проверяем, не отвечен ли уже вопрос
-      if (question.userAnswer !== null) {
-        throw new Error('На этот вопрос уже дан ответ');
-      }
-
-      // Получаем данные вопроса из билета
-      const ticket = await Ticket.findOne({ 'questions._id': question.questionId });
-      const questionData = ticket.questions.find(q => q._id.toString() === question.questionId.toString());
-
-      if (!questionData) {
-        throw new Error('Данные вопроса не найдены');
-      }
-
-      const correctAnswer = questionData.options.findIndex(opt => opt.isCorrect);
+  
+      const correctAnswer = questionData.options.findIndex((opt) => opt.isCorrect);
+      const selectedOptionText = questionData.options[userAnswer]?.text || 'Неизвестно';
+      const correctOptionText = questionData.options[correctAnswer]?.text || 'Неизвестно';
+  
       question.userAnswer = userAnswer;
       question.isCorrect = userAnswer === correctAnswer;
-
+  
       if (!question.isCorrect) {
-        marathonExam.mistakes += 1;
+        exam.mistakes += 1;
+  
+        // Добавляем информацию об ошибке в mistakesDetails
+        exam.mistakesDetails.push({
+          questionId: question.questionId.toString(),
+          questionText: questionData.text,
+          selectedOption: selectedOptionText,
+          correctOption: correctOptionText
+        });
+  
+        // Если это третья ошибка, экзамен провален
+        if (exam.mistakes >= 3) {
+          exam.status = 'failed';
+          await exam.save();
+          return exam;
+        }
+  
+        // Добавляем дополнительные вопросы
+        await this.addExtraQuestions(exam, questionData.category);
       }
-
-      marathonExam.completedQuestions += 1;
-
-      // Проверяем, завершен ли марафон
-      if (marathonExam.completedQuestions === marathonExam.questions.length) {
-        marathonExam.status = 'completed';
+  
+      // Проверяем, закончен ли экзамен
+      const allAnswered = exam.questions.every((q) => q.userAnswer !== null) &&
+        exam.extraQuestions.every((q) => q.userAnswer !== null);
+  
+      if (allAnswered) {
+        exam.status = exam.mistakes < 3 ? 'passed' : 'failed';
       }
-
-      await marathonExam.save();
-      return marathonExam;
+  
+      await exam.save();
+      return exam;
     } catch (error) {
-      throw new Error(`Ошибка при обработке ответа марафона: ${error.message}`);
+      throw new Error(`Ошибка при обработке ответа: ${error.message}`);
     }
   }
 
-  // Получить прогресс марафона
   async getMarathonProgress(userId) {
     try {
       const marathonExam = await MarathonExam.findOne({ userId, status: 'in_progress' });
@@ -119,20 +151,22 @@ class ExamService {
           totalQuestions: 800,
           progress: 0,
           correctAnswers: 0,
-          mistakes: 0
+          mistakes: 0,
+          mistakesDetails: []
         };
       }
-
+  
       const totalQuestions = marathonExam.questions.length;
       const correctAnswers = marathonExam.questions.filter(q => q.isCorrect).length;
       const progress = Math.round((correctAnswers / totalQuestions) * 100);
-
+  
       return {
         status: marathonExam.status,
         totalQuestions,
         progress,
         correctAnswers,
-        mistakes: marathonExam.mistakes
+        mistakes: marathonExam.mistakes,
+        mistakesDetails: marathonExam.mistakesDetails // Добавляем информацию об ошибках
       };
     } catch (error) {
       throw new Error(`Ошибка при получении прогресса марафона: ${error.message}`);
@@ -340,7 +374,10 @@ class ExamService {
         exam.extraQuestions.filter(q => q.isCorrect).length;
   
       return {
-        exam,
+        exam: {
+          ...exam.toObject(),
+          mistakesDetails: exam.mistakesDetails // Добавляем информацию об ошибках
+        },
         statistics: {
           totalQuestions,
           correctAnswers,

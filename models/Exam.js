@@ -21,7 +21,15 @@ const examSchema = new mongoose.Schema({
   status: { type: String, enum: ['in_progress', 'passed', 'failed'], default: 'in_progress' },
   startTime: { type: Date, default: Date.now },
   timeLimit: { type: Number, default: 20 * 60 * 1000 }, // 20 минут
-  extraTime: { type: Number, default: 0 } // Дополнительное время
+  extraTime: { type: Number, default: 0 }, // Дополнительное время
+  mistakesDetails: [ // Новое поле для хранения ошибок
+    {
+      questionId: { type: String, required: true },
+      questionText: { type: String, required: true },
+      selectedOption: { type: String, required: true },
+      correctOption: { type: String, required: true }
+    }
+  ]
 });
 
 module.exports = mongoose.model('Exam', examSchema);
