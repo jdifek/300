@@ -5,6 +5,49 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 
+const getCourse = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const courses = await Course.find();
+
+    const coursesWithProgress = courses.map(course => {
+      let courseProgress = user.coursesProgress.find(cp =>
+        cp.courseId.equals(course._id)
+      );
+
+      // Если прогресс по курсу отсутствует — создаём его
+      if (!courseProgress) {
+        courseProgress = {
+          courseId: course._id,
+          lastStudiedLesson: null,
+          lessons: course.lessons.map(l => ({
+            lessonId: l._id,
+            isCompleted: false,
+            homeworkSubmitted: false,
+            homeworkData: null,
+            isWatched: false
+          }))
+        };
+        user.coursesProgress.push(courseProgress);
+      }
+
+      return {
+        ...course.toJSON(),
+        progress: {
+          lastStudiedLesson: courseProgress.lastStudiedLesson,
+          lessons: courseProgress.lessons
+        }
+      };
+    });
+
+    // сохраняем, если был добавлен хотя бы один новый прогресс
+    await user.save();
+
+    res.json(coursesWithProgress);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'public/uploads');
@@ -45,51 +88,7 @@ const updateLessonThumbnail = async (req, res) => {
   }
 };
 
-module.exports = { upload, updateLessonThumbnail };
-
-exports.getCourse = async (req, res) => {
-  try {
-    const { courseId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(courseId)) {
-      return res.status(400).json({ message: 'Неверный ID курса' });
-    }
-
-    const user = await User.findById(req.user.id);
-    const course = await Course.findById(req.params.courseId);
-
-    if (!course) return res.status(404).json({ message: 'Курс не найден' });
-
-    let courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
-    if (!courseProgress) {
-      courseProgress = {
-        courseId: course._id,
-        lastStudiedLesson: null,
-        lessons: course.lessons.map(l => ({
-          lessonId: l._id,
-          isCompleted: false,
-          homeworkSubmitted: false,
-          homeworkData: null,
-          isWatched: false // Задаём значение по умолчанию для нового поля
-        }))
-      };
-      user.coursesProgress.push(courseProgress);
-      await user.save();
-    }
-
-    res.json({
-      ...course.toJSON(),
-      progress: {
-        lastStudiedLesson: courseProgress.lastStudiedLesson,
-        lessons: courseProgress.lessons
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-exports.getLesson = async (req, res) => {
+const getLesson = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     const course = await Course.findById(req.params.courseId);
@@ -116,7 +115,7 @@ exports.getLesson = async (req, res) => {
   }
 };
 
-exports.markLessonCompleted = async (req, res) => {
+const markLessonCompleted = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     const course = await Course.findById(req.params.courseId);
@@ -148,7 +147,7 @@ exports.markLessonCompleted = async (req, res) => {
   }
 };
 
-exports.submitHomework = async (req, res) => {
+const submitHomework = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     const course = await Course.findById(req.params.courseId);
@@ -179,6 +178,7 @@ exports.submitHomework = async (req, res) => {
   }
 };
 
+
 exports.subscribeToChannel = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -193,7 +193,7 @@ exports.subscribeToChannel = async (req, res) => {
   }
 };
 
-exports.getNextLesson = async (req, res) => {
+const getNextLesson = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     const course = await Course.findById(req.params.courseId);
@@ -227,7 +227,7 @@ exports.getNextLesson = async (req, res) => {
   }
 };
 
-exports.getPrevLesson = async (req, res) => {
+const getPrevLesson = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     const course = await Course.findById(req.params.courseId);
@@ -260,7 +260,7 @@ exports.getPrevLesson = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-exports.markLessonWatched = async (req, res) => {
+const markLessonWatched = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     const course = await Course.findById(req.params.courseId);
@@ -309,3 +309,5 @@ exports.markLessonWatched = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+module.exports = { upload, updateLessonThumbnail, getCourse, getLesson, markLessonCompleted,markLessonWatched, submitHomework, getNextLesson, getPrevLesson };
