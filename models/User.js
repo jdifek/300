@@ -20,6 +20,7 @@ const TicketProgressSchema = new mongoose.Schema({
   mistakes: { type: Number, default: 0 },
   correctAnswers: { type: Number, default: 0 },
   totalQuestions: { type: Number, default: 0 },
+  startedAt: { type: Date }, // Добавляем поле для времени начала
   completedAt: { type: Date },
   answeredQuestions: [
     {
@@ -28,7 +29,7 @@ const TicketProgressSchema = new mongoose.Schema({
       isCorrect: { type: Boolean, required: true }
     }
   ],
-  mistakesDetails: [ // Новое поле для хранения подробностей об ошибках
+  mistakesDetails: [
     {
       questionId: { type: String, required: true },
       questionText: { type: String, required: true },
@@ -55,7 +56,7 @@ const UserSchema = new mongoose.Schema({
     autoRenew: { type: Boolean, default: false }
   },
   coursesProgress: [CourseProgressSchema],
-  ticketsProgress: [TicketProgressSchema], // Новое поле для прогресса по билетам
+  ticketsProgress: [TicketProgressSchema],
   refreshToken: { type: String },
   firstLogin: { type: Date, default: Date.now },
   subscribedToChannel: { type: Boolean, default: false },

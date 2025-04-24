@@ -14,7 +14,6 @@ class TicketService {
 
   async getTicketByNumber(ticketNumber) {
     try {
-      // Проверяем, что ticketNumber является числом
       if (isNaN(ticketNumber)) {
         throw new Error('Неверный номер билета');
       }
@@ -69,24 +68,30 @@ class TicketService {
         throw ApiError.NotFound('Пользователь не найден');
       }
 
-      // Проверяем, начинал ли пользователь этот билет
-      const ticketProgress = user.ticketsProgress.find(tp => tp.ticketNumber === number);
+      let ticketProgress = user.ticketsProgress.find(tp => tp.ticketNumber === number);
       if (!ticketProgress) {
-        user.ticketsProgress.push({
+        ticketProgress = {
           ticketNumber: number,
+          startedAt: new Date(), // Устанавливаем время начала
           isCompleted: false,
           mistakes: 0,
           correctAnswers: 0,
-          totalQuestions: ticket.questions.length
-        });
-        await user.save();
+          totalQuestions: ticket.questions.length,
+          answeredQuestions: [],
+          mistakesDetails: []
+        };
+        user.ticketsProgress.push(ticketProgress);
+      } else if (!ticketProgress.startedAt) {
+        ticketProgress.startedAt = new Date(); // Устанавливаем, если не было установлено
       }
 
+      await user.save();
       return ticket;
     } catch (error) {
       throw new Error(`Ошибка при начале билета: ${error.message}`);
     }
   }
+
   async submitTicket(number, userId, answers) {
     try {
       console.log('📩 Запрос на отправку билета:', { number, userId, answers });
@@ -105,7 +110,6 @@ class TicketService {
       }
       console.log('✅ Пользователь найден:', user.email || user._id);
   
-      // Подсчитываем результаты текущего запроса
       let correctAnswersDelta = 0;
       let mistakesDelta = 0;
       const detailedResults = [];
@@ -114,19 +118,19 @@ class TicketService {
       if (!ticketProgress) {
         ticketProgress = {
           ticketNumber: number,
+          startedAt: new Date(), // Устанавливаем время начала
           isCompleted: false,
           mistakes: 0,
           correctAnswers: 0,
           totalQuestions: ticket.questions.length,
           answeredQuestions: [],
-          mistakesDetails: [], // Инициализируем массив для ошибок
+          mistakesDetails: [],
           completedAt: null
         };
         user.ticketsProgress.push(ticketProgress);
         console.log('➕ Добавлен новый прогресс по билету:', ticketProgress);
       }
   
-      // Обрабатываем текущие ответы
       answers.forEach(answer => {
         const alreadyAnswered = ticketProgress.answeredQuestions.find(
           q => q.questionId === answer.questionId
@@ -150,7 +154,6 @@ class TicketService {
             selectedOption: answer.selectedOption,
             isCorrect: false
           });
-          // Добавляем ошибку в mistakesDetails
           ticketProgress.mistakesDetails.push({
             questionId: answer.questionId,
             questionText: 'Вопрос не найден',
@@ -167,7 +170,6 @@ class TicketService {
           correctAnswersDelta++;
         } else {
           mistakesDelta++;
-          // Добавляем информацию об ошибке в mistakesDetails
           ticketProgress.mistakesDetails.push({
             questionId: answer.questionId,
             questionText: question.text,
@@ -191,11 +193,9 @@ class TicketService {
         console.log(`📘 Вопрос ${question._id}: ответ "${answer.selectedOption}", правильный: "${correctOption?.text}", результат: ${isCorrect}`);
       });
   
-      // Обновляем прогресс
       ticketProgress.correctAnswers += correctAnswersDelta;
       ticketProgress.mistakes += mistakesDelta;
   
-      // Проверяем, все ли вопросы отвечены
       const totalAnswered = ticketProgress.answeredQuestions.length;
       if (totalAnswered >= ticket.questions.length) {
         ticketProgress.isCompleted = true;
@@ -208,7 +208,6 @@ class TicketService {
         totalAnswered
       });
   
-      // Обновляем общую статистику
       user.stats.ticketsCompleted = user.ticketsProgress.filter(tp => tp.isCompleted).length;
       user.stats.mistakes = user.ticketsProgress.reduce((acc, tp) => acc + tp.mistakes, 0);
   
@@ -237,7 +236,6 @@ class TicketService {
       throw new Error(`Ошибка при отправке билета: ${error.message}`);
     }
   }
-  
 
   async getTicketProgress(userId) {
     try {
@@ -251,7 +249,6 @@ class TicketService {
       const ticketsCompleted = user.ticketsProgress.filter(tp => tp.isCompleted).length;
       const totalMistakes = user.stats.mistakes;
   
-      // Определяем следующий билет
       let nextTicket = 1;
       for (let i = 1; i <= totalTickets; i++) {
         const ticketProgress = user.ticketsProgress.find(tp => tp.ticketNumber === i);
@@ -261,7 +258,6 @@ class TicketService {
         }
       }
   
-      // Формируем прогресс по билетам, включая ошибки
       const ticketsProgress = user.ticketsProgress.map(tp => ({
         ticketNumber: tp.ticketNumber,
         isCompleted: tp.isCompleted,
@@ -269,7 +265,11 @@ class TicketService {
         correctAnswers: tp.correctAnswers,
         totalQuestions: tp.totalQuestions,
         completedAt: tp.completedAt,
-        mistakesDetails: tp.mistakesDetails // Добавляем информацию об ошибках
+        timeSpent: tp.startedAt && tp.completedAt 
+          ? (new Date(tp.completedAt) - new Date(tp.startedAt)) / 1000 // Время в секундах
+          : null,
+        mistakesDetails: tp.mistakesDetails,
+        answeredQuestions: tp.answeredQuestions // Добавляем информацию об ответах
       }));
   
       return {

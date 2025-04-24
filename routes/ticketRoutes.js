@@ -52,7 +52,12 @@ const { isAuthenticated } = require('../middleware/auth');
  *                       completedAt:
  *                         type: string
  *                         format: date-time
- *                         description: Дата завершения
+ *                         description: Дата завершения билета
+ *                         nullable: true
+ *                       timeSpent:
+ *                         type: number
+ *                         description: Время, затраченное на прохождение билета (в секундах)
+ *                         nullable: true
  *                       mistakesDetails:
  *                         type: array
  *                         items:
@@ -71,6 +76,21 @@ const { isAuthenticated } = require('../middleware/auth');
  *                               type: string
  *                               description: Правильный ответ
  *                         description: Подробности о допущенных ошибках
+ *                       answeredQuestions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             questionId:
+ *                               type: string
+ *                               description: ID вопроса
+ *                             selectedOption:
+ *                               type: string
+ *                               description: Выбранный пользователем ответ
+ *                             isCorrect:
+ *                               type: boolean
+ *                               description: Правильность ответа
+ *                         description: Список отвеченных вопросов
  *                 nextTicket:
  *                   type: integer
  *                   description: Номер следующего билета для прохождения
