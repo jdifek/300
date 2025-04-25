@@ -100,162 +100,7 @@ const { isAuthenticated } = require('../middleware/auth');
  *         description: Ошибка сервера
  */
 router.get('/progress', isAuthenticated, ticketController.getTicketProgress);
-/**
- * @swagger
- * /api/tickets/{number}/start:
- *   post:
- *     summary: Начать прохождение билета
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: number
- *         required: true
- *         schema:
- *           type: integer
- *         description: Номер билета
- *     responses:
- *       200:
- *         description: Билет успешно начат
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   description: Сообщение об успешном начале
- *                   example: "Ticket started successfully"
- *                 ticket:
- *                   type: object
- *                   properties:
- *                     _id:
- *                       type: string
- *                       description: ID билета
- *                     number:
- *                       type: integer
- *                       description: Номер билета
- *                     questions:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           _id:
- *                             type: string
- *                             description: ID вопроса
- *                           text:
- *                             type: string
- *                             description: Текст вопроса
- *                           imageUrl:
- *                             type: string
- *                             description: URL изображения (если есть)
- *                           options:
- *                             type: array
- *                             items:
- *                               type: object
- *                               properties:
- *                                 text:
- *                                   type: string
- *                                   description: Текст варианта ответа
- *                                 isCorrect:
- *                                   type: boolean
- *                                   description: Является ли вариант правильным
- *                           hint:
- *                             type: string
- *                             description: Подсказка (если есть)
- *                           videoUrl:
- *                             type: string
- *                             description: URL видео (если есть)
- *                           category:
- *                             type: string
- *                             description: Категория вопроса
- *                           questionNumber:
- *                             type: integer
- *                             description: Номер вопроса в билете
- *       404:
- *         description: Билет не найден
- *       401:
- *         description: Не авторизован
- *       500:
- *         description: Ошибка сервера
- */
-router.post('/:number/start', isAuthenticated, ticketController.startTicket);
 
-/**
- * @swagger
- * /api/tickets/{number}:
- *   get:
- *     summary: Получить билет по номеру
- *     tags: [Tickets]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: number
- *         required: true
- *         schema:
- *           type: integer
- *         description: Номер билета
- *     responses:
- *       200:
- *         description: Данные билета
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 _id:
- *                   type: string
- *                   description: ID билета
- *                 number:
- *                   type: integer
- *                   description: Номер билета
- *                 questions:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       _id:
- *                         type: string
- *                         description: ID вопроса
- *                       text:
- *                         type: string
- *                         description: Текст вопроса
- *                       imageUrl:
- *                         type: string
- *                         description: URL изображения (если есть)
- *                       options:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             text:
- *                               type: string
- *                               description: Текст варианта ответа
- *                             isCorrect:
- *                               type: boolean
- *                               description: Является ли вариант правильным
- *                       hint:
- *                         type: string
- *                         description: Подсказка (если есть)
- *                       videoUrl:
- *                         type: string
- *                         description: URL видео (если есть)
- *                       category:
- *                         type: string
- *                         description: Категория вопроса
- *                       questionNumber:
- *                         type: integer
- *                         description: Номер вопроса в билете
- *       404:
- *         description: Билет не найден
- *       401:
- *         description: Не авторизован
- *       500:
- *         description: Ошибка сервера
- */
-router.get('/:number', isAuthenticated, ticketController.getTicketByNumber);
 
 /**
  * @swagger
@@ -453,7 +298,162 @@ router.get('/category/:category', isAuthenticated, ticketController.getQuestions
  */
 router.get('/random', isAuthenticated, ticketController.getRandomQuestions);
 
+/**
+ * @swagger
+ * /api/tickets/{number}/start:
+ *   post:
+ *     summary: Начать прохождение билета
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: number
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Номер билета
+ *     responses:
+ *       200:
+ *         description: Билет успешно начат
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Сообщение об успешном начале
+ *                   example: "Ticket started successfully"
+ *                 ticket:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID билета
+ *                     number:
+ *                       type: integer
+ *                       description: Номер билета
+ *                     questions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             description: ID вопроса
+ *                           text:
+ *                             type: string
+ *                             description: Текст вопроса
+ *                           imageUrl:
+ *                             type: string
+ *                             description: URL изображения (если есть)
+ *                           options:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 text:
+ *                                   type: string
+ *                                   description: Текст варианта ответа
+ *                                 isCorrect:
+ *                                   type: boolean
+ *                                   description: Является ли вариант правильным
+ *                           hint:
+ *                             type: string
+ *                             description: Подсказка (если есть)
+ *                           videoUrl:
+ *                             type: string
+ *                             description: URL видео (если есть)
+ *                           category:
+ *                             type: string
+ *                             description: Категория вопроса
+ *                           questionNumber:
+ *                             type: integer
+ *                             description: Номер вопроса в билете
+ *       404:
+ *         description: Билет не найден
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.post('/:number/start', isAuthenticated, ticketController.startTicket);
 
+/**
+ * @swagger
+ * /api/tickets/{number}:
+ *   get:
+ *     summary: Получить билет по номеру
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: number
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Номер билета
+ *     responses:
+ *       200:
+ *         description: Данные билета
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: ID билета
+ *                 number:
+ *                   type: integer
+ *                   description: Номер билета
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       text:
+ *                         type: string
+ *                         description: Текст вопроса
+ *                       imageUrl:
+ *                         type: string
+ *                         description: URL изображения (если есть)
+ *                       options:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             text:
+ *                               type: string
+ *                               description: Текст варианта ответа
+ *                             isCorrect:
+ *                               type: boolean
+ *                               description: Является ли вариант правильным
+ *                       hint:
+ *                         type: string
+ *                         description: Подсказка (если есть)
+ *                       videoUrl:
+ *                         type: string
+ *                         description: URL видео (если есть)
+ *                       category:
+ *                         type: string
+ *                         description: Категория вопроса
+ *                       questionNumber:
+ *                         type: integer
+ *                         description: Номер вопроса в билете
+ *       404:
+ *         description: Билет не найден
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/:number', isAuthenticated, ticketController.getTicketByNumber);
 /**
  * @swagger
  * /api/tickets/{number}/submit:

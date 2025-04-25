@@ -4,7 +4,46 @@ const fs = require('fs');
 const Course = require('../models/Course');
 const User = require('../models/User');
 const mongoose = require('mongoose');
+const getCourseById = async (req, res) => {
+  try {
+    const { courseId } = req.params; // Получаем ID курса из параметров
+    const user = await User.findById(req.user.id); // Получаем пользователя
 
+    // Проверяем, существует ли курс
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ message: 'Курс не найден' });
+    }
+
+    // Получаем прогресс по курсу
+    let courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
+    if (!courseProgress) {
+      courseProgress = {
+        courseId: course._id,
+        lastStudiedLesson: null,
+        lessons: course.lessons.map(l => ({
+          lessonId: l._id,
+          isCompleted: false,
+          homeworkSubmitted: false,
+          homeworkData: null,
+          isWatched: false
+        }))
+      };
+      user.coursesProgress.push(courseProgress);
+      await user.save(); // Сохраняем прогресс, если он был добавлен
+    }
+
+    res.json({
+      ...course.toJSON(),
+      progress: {
+        lastStudiedLesson: courseProgress.lastStudiedLesson,
+        lessons: courseProgress.lessons
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 const getCourse = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -310,4 +349,4 @@ const markLessonWatched = async (req, res) => {
   }
 };
 
-module.exports = { upload, updateLessonThumbnail, getCourse, getLesson, markLessonCompleted,markLessonWatched, submitHomework, getNextLesson, getPrevLesson };
+module.exports = { upload, updateLessonThumbnail, getCourse, getLesson, markLessonCompleted,markLessonWatched, submitHomework, getNextLesson, getPrevLesson,getCourseById };

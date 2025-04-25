@@ -118,7 +118,7 @@ class TicketService {
       if (!ticketProgress) {
         ticketProgress = {
           ticketNumber: number,
-          startedAt: new Date(), // Устанавливаем время начала
+          startedAt: new Date(),
           isCompleted: false,
           mistakes: 0,
           correctAnswers: 0,
@@ -152,13 +152,17 @@ class TicketService {
           ticketProgress.answeredQuestions.push({
             questionId: answer.questionId,
             selectedOption: answer.selectedOption,
-            isCorrect: false
+            isCorrect: false,
+            hint: null,
+            imageUrl: null
           });
           ticketProgress.mistakesDetails.push({
             questionId: answer.questionId,
             questionText: 'Вопрос не найден',
             selectedOption: answer.selectedOption,
-            correctOption: 'Неизвестно'
+            correctOption: 'Неизвестно',
+            hint: null,
+            imageUrl: null
           });
           return;
         }
@@ -174,7 +178,9 @@ class TicketService {
             questionId: answer.questionId,
             questionText: question.text,
             selectedOption: answer.selectedOption,
-            correctOption: correctOption.text
+            correctOption: correctOption.text,
+            hint: question.hint || null,
+            imageUrl: question.imageUrl || null
           });
         }
   
@@ -187,10 +193,12 @@ class TicketService {
         ticketProgress.answeredQuestions.push({
           questionId: answer.questionId,
           selectedOption: answer.selectedOption,
-          isCorrect
+          isCorrect,
+          hint: question.hint || null,
+          imageUrl: question.imageUrl || null
         });
   
-        console.log(`📘 Вопрос ${question._id}: ответ "${answer.selectedOption}", правильный: "${correctOption?.text}", результат: ${isCorrect}`);
+        console.log(`📘 Вопрос ${question._id}: ответ "${answer.selectedOption}", правильный: "${correctOption?.text}", результат: ${isCorrect}, hint: "${question.hint || 'нет'}", imageUrl: "${question.imageUrl || 'нет'}"`);
       });
   
       ticketProgress.correctAnswers += correctAnswersDelta;

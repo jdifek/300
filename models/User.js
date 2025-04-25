@@ -26,7 +26,9 @@ const TicketProgressSchema = new mongoose.Schema({
     {
       questionId: { type: String, required: true },
       selectedOption: { type: String, required: true },
-      isCorrect: { type: Boolean, required: true }
+      isCorrect: { type: Boolean, required: true },
+      hint: { type: String },// new
+      imageUrl: { type: String } // new
     }
   ],
   mistakesDetails: [
@@ -34,7 +36,9 @@ const TicketProgressSchema = new mongoose.Schema({
       questionId: { type: String, required: true },
       questionText: { type: String, required: true },
       selectedOption: { type: String, required: true },
-      correctOption: { type: String, required: true }
+      correctOption: { type: String, required: true },
+      hint: { type: String }, // new
+      imageUrl: { type: String } // new
     }
   ]
 });

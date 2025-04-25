@@ -368,16 +368,44 @@ router.post('/select-ticket',
  *                     type: object
  *                     properties:
  *                       questionId:
- *                         type: string
- *                         description: ID вопроса из билета
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             description: ID вопроса
+ *                           text:
+ *                             type: string
+ *                             description: Текст вопроса
+ *                           options:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 text:
+ *                                   type: string
+ *                                   description: Текст варианта ответа
+ *                           hint:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Подсказка
+ *                           imageUrl:
+ *                             type: string
+ *                             nullable: true
+ *                             description: URL изображения
+ *                           category:
+ *                             type: string
+ *                             description: Категория вопроса
+ *                           questionNumber:
+ *                             type: integer
+ *                             description: Номер вопроса в билете
  *                       userAnswer:
  *                         type: integer
  *                         nullable: true
- *                         description: Ответ пользователя (null, если не отвечено)
+ *                         description: Ответ пользователя (индекс варианта, null если не отвечено)
  *                       isCorrect:
  *                         type: boolean
  *                         nullable: true
- *                         description: Правильность ответа (null, если не отвечено)
+ *                         description: Правильность ответа (null если не отвечено)
  *                 extraQuestions:
  *                   type: array
  *                   items:
@@ -389,11 +417,11 @@ router.post('/select-ticket',
  *                       userAnswer:
  *                         type: integer
  *                         nullable: true
- *                         description: Ответ пользователя (null, если не отвечено)
+ *                         description: Ответ пользователя (null если не отвечено)
  *                       isCorrect:
  *                         type: boolean
  *                         nullable: true
- *                         description: Правильность ответа (null, если не отвечено)
+ *                         description: Правильность ответа (null если не отвечено)
  *                 mistakes:
  *                   type: integer
  *                   description: Количество ошибок
@@ -411,6 +439,31 @@ router.post('/select-ticket',
  *                 extraTime:
  *                   type: integer
  *                   description: Дополнительное время (в миллисекундах)
+ *                 mistakesDetails:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       questionText:
+ *                         type: string
+ *                         description: Текст вопроса
+ *                       selectedOption:
+ *                         type: string
+ *                         description: Выбранный пользователем ответ
+ *                       correctOption:
+ *                         type: string
+ *                         description: Правильный ответ
+ *                       hint:
+ *                         type: string
+ *                         nullable: true
+ *                         description: Подсказка
+ *                       imageUrl:
+ *                         type: string
+ *                         nullable: true
+ *                         description: URL изображения
  *       401:
  *         description: Не авторизован
  *       400:

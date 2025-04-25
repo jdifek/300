@@ -9,7 +9,7 @@ const courseRoutes = require('./routes/courseRoutes'); // Новый роут
 const ticketRoutes = require('./routes/ticketRoutes');
 const examRoutes = require('./routes/examRoutes');
 const pathwayRoutes = require('./routes/examPathways.js');
-const notificationRoutes = require('./routes/notificationRoute.js');
+const notificationRoutes = require('./routes/notificationRoutes.js');
 const app = express();
 const path = require('path');
 
@@ -55,7 +55,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/exam', examRoutes);
-app.use('/api/notification', notificationRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/pathway', pathwayRoutes);
 
 app.listen(PORT, () => {

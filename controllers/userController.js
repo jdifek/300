@@ -7,37 +7,48 @@ const generateTokens = (userId) => {
   const refreshToken = jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
   return { accessToken, refreshToken };
 };
-
 exports.telegramLogin = async (req, res) => {
   try {
     const { telegramId, username, avatar } = req.body;
+    console.log('[LOGIN][REQ_BODY]', { telegramId, username, avatar });
+
     if (!telegramId || !username) {
+      console.warn('[LOGIN][VALIDATION_FAIL]', 'Missing telegramId or username');
       return res.status(400).json({ message: 'telegramId and username are required' });
     }
 
-    let user = await User.findOne({ telegramId });
+    const normalizedTelegramId = String(telegramId);
+    let user = await User.findOne({ telegramId: normalizedTelegramId });
+    console.log('[LOGIN][USER_FOUND]', user ? `User ${user._id}` : 'No user found, will create new');
+
     if (!user) {
       user = new User({
-        telegramId,
+        telegramId: normalizedTelegramId,
         username,
         avatar: avatar || 'default-avatar.png',
         firstLogin: Date.now()
       });
+      console.log('[LOGIN][USER_CREATED]', user);
     } else {
       user.username = username;
       if (avatar) user.avatar = avatar;
+      console.log('[LOGIN][USER_UPDATED]', { username, avatar });
     }
 
     const { accessToken, refreshToken } = generateTokens(user._id);
     user.refreshToken = refreshToken;
-    await user.save();
+
+    await user.save()
+      .then(() => console.log('[LOGIN][USER_SAVED]', user._id))
+      .catch(e => console.error('[LOGIN][SAVE_ERROR]', e));
 
     res.json({ accessToken, refreshToken, userId: user._id });
   } catch (error) {
-    console.error('Telegram login error:', error.message);
+    console.error('[LOGIN][ERROR]', error.message, error.stack);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 exports.refreshToken = async (req, res) => {
   try {

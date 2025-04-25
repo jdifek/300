@@ -210,13 +210,24 @@ class ExamService {
       if (!ticket) {
         throw new Error('Билет не найден');
       }
-
+  
+      // Формируем вопросы с полными данными
       const examQuestions = ticket.questions.map((question) => ({
-        questionId: question._id,
+        questionId: {
+          _id: question._id,
+          text: question.text,
+          options: question.options.map(opt => ({
+            text: opt.text // Исключаем isCorrect для безопасности
+          })),
+          hint: question.hint || null,
+          imageUrl: question.imageUrl || null,
+          category: question.category,
+          questionNumber: question.questionNumber
+        },
         userAnswer: null,
         isCorrect: null
       }));
-
+  
       const exam = new Exam({
         userId,
         ticketNumber,
@@ -227,7 +238,7 @@ class ExamService {
         startTime: new Date(),
         timeLimit: 20 * 60 * 1000
       });
-
+  
       await exam.save();
       return exam;
     } catch (error) {

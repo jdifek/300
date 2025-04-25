@@ -198,7 +198,7 @@ router.get('/', isAuthenticated, courseController.getCourse);
  *       500:
  *         description: Ошибка сервера
  */
-router.get('/:courseId', isAuthenticated, courseController.getCourse);
+router.get('/:courseId', isAuthenticated, courseController.getCourseById);
 
 /**
  * @swagger

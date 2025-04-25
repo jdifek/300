@@ -5,7 +5,19 @@ const examSchema = new mongoose.Schema({
   ticketNumber: { type: Number, required: true },
   questions: [
     {
-      questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ticket.questions' },
+      questionId: {
+        _id: { type: String, required: true },
+        text: { type: String, required: true },
+        options: [
+          {
+            text: { type: String, required: true }
+          }
+        ],
+        hint: { type: String, default: null },
+        imageUrl: { type: String, default: null },
+        category: { type: String },
+        questionNumber: { type: Number }
+      },
       userAnswer: { type: Number, default: null },
       isCorrect: { type: Boolean, default: null }
     }
