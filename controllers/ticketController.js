@@ -41,6 +41,33 @@ class TicketController {
     }
   }
 
+  async submitRandomTicket(req, res, next) {
+    try {
+      const { ticketNumber, answers } = req.body;
+      const userId = req.user.id;
+  
+      // Проверяем, существует ли билет
+      const ticket = await ticketService.getTicketByNumber(parseInt(ticketNumber));
+      if (!ticket) {
+        return res.status(404).json({ message: 'Билет не найден' });
+      }
+  
+      // Проверяем, начат ли билет пользователем
+      const user = await User.findById(userId);
+      let ticketProgress = user.ticketsProgress.find(tp => tp.ticketNumber === ticketNumber);
+      if (!ticketProgress) {
+        // Если билет не начат, начинаем его
+        await ticketService.startTicket(parseInt(ticketNumber), userId);
+      }
+  
+      // Отправляем ответы и сохраняем прогресс
+      const results = await ticketService.submitTicket(parseInt(ticketNumber), userId, answers);
+  
+      res.json({ message: 'Random ticket submitted successfully', results });
+    } catch (error) {
+      next(error);
+    }
+  }
   async startTicket(req, res, next) {
     try {
       const { number } = req.params;
@@ -76,15 +103,19 @@ class TicketController {
 
   async getRandomTicket(req, res, next) {
     try {
-      const tickets = await ticketService.getAllTickets(); // Получаем все билеты
+      const userId = req.user.id;
+      const tickets = await ticketService.getAllTickets();
       if (tickets.length === 0) {
         return res.status(404).json({ message: 'Нет доступных билетов' });
       }
-
+  
       // Выбираем случайный билет
       const randomIndex = Math.floor(Math.random() * tickets.length);
       const randomTicket = tickets[randomIndex];
-
+  
+      // Начинаем билет для пользователя
+      await ticketService.startTicket(randomTicket.number, userId);
+  
       res.json(randomTicket);
     } catch (error) {
       next(error);

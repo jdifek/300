@@ -372,7 +372,88 @@ router.get('/random', isAuthenticated, ticketController.getRandomQuestions);
  *         description: Ошибка сервера
  */
 router.get('/random-ticket', isAuthenticated, ticketController.getRandomTicket);
-
+/**
+ * @swagger
+ * /api/tickets/random-ticket/submit:
+ *   post:
+ *     summary: Отправить ответы на вопросы случайного билета и получить результаты
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ticketNumber:
+ *                 type: integer
+ *                 description: Номер случайного билета
+ *               answers:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     questionId:
+ *                       type: string
+ *                       description: ID вопроса
+ *                     selectedOption:
+ *                       type: string
+ *                       description: Текст выбранного варианта ответа
+ *                 description: Ответы пользователя на вопросы билета
+ *     responses:
+ *       200:
+ *         description: Результаты прохождения случайного билета
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Сообщение об успешной отправке
+ *                   example: "Random ticket submitted successfully"
+ *                 results:
+ *                   type: object
+ *                   properties:
+ *                     ticketNumber:
+ *                       type: integer
+ *                       description: Номер билета
+ *                     totalQuestions:
+ *                       type: integer
+ *                       description: Общее количество вопросов
+ *                     correctAnswers:
+ *                       type: integer
+ *                       description: Количество правильных ответов
+ *                     mistakes:
+ *                       type: integer
+ *                       description: Количество ошибок
+ *                     successRate:
+ *                       type: number
+ *                       description: Процент успешности
+ *                     answers:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: string
+ *                             description: ID вопроса
+ *                           selectedOption:
+ *                             type: string
+ *                             description: Выбранный вариант ответа
+ *                           isCorrect:
+ *                             type: boolean
+ *                             description: Правильный ли ответ
+ *       404:
+ *         description: Билет не найден
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.post('/random-ticket/submit', isAuthenticated, ticketController.submitRandomTicket);
 /**
  * @swagger
  * /api/tickets/{number}/start:
