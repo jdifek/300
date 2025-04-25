@@ -39,6 +39,7 @@ async function importTickets(jsonData) {
               questionNumber: question.questionNumber,
             };
           }),
+          videoUrl: ticket.videoUrl || '',
         };
         transformedData.push(transformedTicket);
         console.log(`Transformed ticket number: ${ticket.number}`);

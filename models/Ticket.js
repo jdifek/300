@@ -17,7 +17,8 @@ const ticketSchema = new mongoose.Schema({
       category: { type: String, required: true },
       questionNumber: { type: Number, required: true }
     }
-  ]
+  ],
+  videoUrl: { type: String }
 });
 
 module.exports = mongoose.model('Ticket', ticketSchema);

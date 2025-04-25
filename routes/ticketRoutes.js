@@ -140,6 +140,7 @@ router.get('/progress', isAuthenticated, ticketController.getTicketProgress);
  *                         imageUrl:
  *                           type: string
  *                           description: URL изображения (если есть)
+ *                           nullable: true
  *                         options:
  *                           type: array
  *                           items:
@@ -154,22 +155,27 @@ router.get('/progress', isAuthenticated, ticketController.getTicketProgress);
  *                         hint:
  *                           type: string
  *                           description: Подсказка (если есть)
+ *                           nullable: true
  *                         videoUrl:
  *                           type: string
  *                           description: URL видео (если есть)
+ *                           nullable: true
  *                         category:
  *                           type: string
  *                           description: Категория вопроса
  *                         questionNumber:
  *                           type: integer
  *                           description: Номер вопроса в билете
+ *                   videoUrl:
+ *                     type: string
+ *                     description: URL видео для билета (если есть)
+ *                     nullable: true
  *       401:
  *         description: Не авторизован
  *       500:
  *         description: Ошибка сервера
  */
 router.get('/', isAuthenticated, ticketController.getAllTickets);
-
 
 /**
  * @swagger
@@ -297,7 +303,6 @@ router.get('/category/:category', isAuthenticated, ticketController.getQuestions
  *         description: Ошибка сервера
  */
 router.get('/random', isAuthenticated, ticketController.getRandomQuestions);
-
 /**
  * @swagger
  * /api/tickets/{number}/start:
@@ -348,6 +353,7 @@ router.get('/random', isAuthenticated, ticketController.getRandomQuestions);
  *                           imageUrl:
  *                             type: string
  *                             description: URL изображения (если есть)
+ *                             nullable: true
  *                           options:
  *                             type: array
  *                             items:
@@ -362,15 +368,21 @@ router.get('/random', isAuthenticated, ticketController.getRandomQuestions);
  *                           hint:
  *                             type: string
  *                             description: Подсказка (если есть)
+ *                             nullable: true
  *                           videoUrl:
  *                             type: string
  *                             description: URL видео (если есть)
+ *                             nullable: true
  *                           category:
  *                             type: string
  *                             description: Категория вопроса
  *                           questionNumber:
  *                             type: integer
  *                             description: Номер вопроса в билете
+ *                     videoUrl:
+ *                       type: string
+ *                       description: URL видео для билета (если есть)
+ *                       nullable: true
  *       404:
  *         description: Билет не найден
  *       401:
@@ -379,7 +391,6 @@ router.get('/random', isAuthenticated, ticketController.getRandomQuestions);
  *         description: Ошибка сервера
  */
 router.post('/:number/start', isAuthenticated, ticketController.startTicket);
-
 /**
  * @swagger
  * /api/tickets/{number}:
@@ -423,6 +434,7 @@ router.post('/:number/start', isAuthenticated, ticketController.startTicket);
  *                       imageUrl:
  *                         type: string
  *                         description: URL изображения (если есть)
+ *                         nullable: true
  *                       options:
  *                         type: array
  *                         items:
@@ -437,15 +449,21 @@ router.post('/:number/start', isAuthenticated, ticketController.startTicket);
  *                       hint:
  *                         type: string
  *                         description: Подсказка (если есть)
+ *                         nullable: true
  *                       videoUrl:
  *                         type: string
  *                         description: URL видео (если есть)
+ *                         nullable: true
  *                       category:
  *                         type: string
  *                         description: Категория вопроса
  *                       questionNumber:
  *                         type: integer
- *                         description: Номер вопроса в билете
+ *                         decine: Номер вопроса в билете
+ *                 videoUrl:
+ *                   type: string
+ *                   description: URL видео для билета (если есть)
+ *                   nullable: true
  *       404:
  *         description: Билет не найден
  *       401:
