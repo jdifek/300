@@ -368,40 +368,97 @@ class ExamService {
       }
   
       const ticket = await Ticket.findOne({ number: exam.ticketNumber });
+      if (!ticket) {
+        throw new Error('Билет не найден');
+      }
+  
       const extraQuestions = await ExtraQuestion.find({
-        _id: { $in: exam.extraQuestions.map(q => q.questionId) }
+        _id: { $in: exam.extraQuestions.map(q => q.questionId) },
+      }).lean();
+  
+      console.log('Ticket questions IDs:', ticket.questions.map(q => q._id.toString()));
+      console.log('Exam questions IDs:', exam.questions.map(q => q.questionId._id));
+  
+      // Map questions with all details from the Ticket model
+      const questionsWithDetails = exam.questions.map(q => {
+        const ticketQuestion = ticket.questions.find(tq => {
+          const isMatch = tq._id.toString() === q.questionId._id; // Сравниваем строку с ObjectId
+          console.log(`Comparing ticket question ID ${tq._id} with exam question ID ${q.questionId._id}: ${isMatch}`);
+          return isMatch;
+        });
+  
+        if (!ticketQuestion) {
+          console.log(`Ticket question not found for questionId: ${q.questionId._id}`);
+        }
+  
+        return {
+          questionId: q.questionId._id, // Только ID вопроса
+          text: ticketQuestion?.text || q.questionId.text || 'Вопрос не найден',
+          options: (ticketQuestion?.options || q.questionId.options || []).map(opt => ({
+            text: opt.text,
+            _id: opt._id,
+          })),
+          hint: ticketQuestion?.hint || q.questionId.hint || null,
+          imageUrl: ticketQuestion?.imageUrl || q.questionId.imageUrl || null,
+          videoUrl: ticketQuestion?.videoUrl || null, // Берем videoUrl из ticket
+          category: ticketQuestion?.category || q.questionId.category || null,
+          questionNumber: ticketQuestion?.questionNumber || q.questionId.questionNumber || null,
+          userAnswer: q.userAnswer,
+          isCorrect: q.isCorrect,
+        };
       });
   
-      // Присоединяем данные вопросов
-      exam.questions.forEach(q => {
-        q.questionId = ticket.questions.find(tq => tq._id.toString() === q.questionId.toString());
-      });
-      exam.extraQuestions.forEach(q => {
-        q.questionId = extraQuestions.find(eq => eq._id.toString() === q.questionId.toString());
+      // Map extra questions with details
+      const extraQuestionsWithDetails = exam.extraQuestions.map(q => {
+        const extraQuestion = extraQuestions.find(eq => eq._id.toString() === q.questionId.toString());
+  
+        if (!extraQuestion) {
+          console.log(`Extra question not found for questionId: ${q.questionId}`);
+        } else {
+          console.log(`Extra question videoUrl: ${extraQuestion.videoUrl}`);
+        }
+  
+        return {
+          questionId: q.questionId,
+          text: extraQuestion?.text || 'Вопрос не найден',
+          options: (extraQuestion?.options || []).map(opt => ({
+            text: opt.text,
+            isCorrect: opt.isCorrect || false,
+          })) || [],
+          hint: extraQuestion?.hint || null,
+          imageUrl: extraQuestion?.imageUrl || null,
+          videoUrl: extraQuestion?.videoUrl || null,
+          category: extraQuestion?.category || null,
+          questionNumber: extraQuestion?.questionNumber || null,
+          userAnswer: q.userAnswer,
+          isCorrect: q.isCorrect,
+        };
       });
   
       const totalQuestions = exam.questions.length + exam.extraQuestions.length;
-      const correctAnswers = exam.questions.filter(q => q.isCorrect).length +
+      const correctAnswers =
+        exam.questions.filter(q => q.isCorrect).length +
         exam.extraQuestions.filter(q => q.isCorrect).length;
   
       return {
         exam: {
           ...exam.toObject(),
-          mistakesDetails: exam.mistakesDetails // Добавляем информацию об ошибках
+          questions: questionsWithDetails,
+          extraQuestions: extraQuestionsWithDetails,
+          mistakesDetails: exam.mistakesDetails,
         },
         statistics: {
           totalQuestions,
           correctAnswers,
           mistakes: exam.mistakes,
           timeSpent: Date.now() - exam.startTime.getTime(),
-          status: exam.status
-        }
+          status: exam.status,
+        },
       };
     } catch (error) {
       throw new Error(`Ошибка при получении результатов: ${error.message}`);
     }
   }
-
   async generateShareTemplate(examId, isPremium) {
     try {
       const { exam, statistics } = await this.getExamResults(examId);
