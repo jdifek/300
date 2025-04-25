@@ -73,6 +73,23 @@ class TicketController {
       next(error);
     }
   }
+
+  async getRandomTicket(req, res, next) {
+    try {
+      const tickets = await ticketService.getAllTickets(); // Получаем все билеты
+      if (tickets.length === 0) {
+        return res.status(404).json({ message: 'Нет доступных билетов' });
+      }
+
+      // Выбираем случайный билет
+      const randomIndex = Math.floor(Math.random() * tickets.length);
+      const randomTicket = tickets[randomIndex];
+
+      res.json(randomTicket);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new TicketController();

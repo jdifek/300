@@ -303,6 +303,76 @@ router.get('/category/:category', isAuthenticated, ticketController.getQuestions
  *         description: Ошибка сервера
  */
 router.get('/random', isAuthenticated, ticketController.getRandomQuestions);
+
+/**
+ * @swagger
+ * /api/tickets/random-ticket:
+ *   get:
+ *     summary: Получить случайный билет
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Случайный билет
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: ID билета
+ *                 number:
+ *                   type: integer
+ *                   description: Номер билета
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       text:
+ *                         type: string
+ *                         description: Текст вопроса
+ *                       imageUrl:
+ *                         type: string
+ *                         description: URL изображения (если есть)
+ *                         nullable: true
+ *                       options:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             text:
+ *                               type: string
+ *                               description: Текст варианта ответа
+ *                             isCorrect:
+ *                               type: boolean
+ *                               description: Является ли вариант правильным
+ *                       hint:
+ *                         type: string
+ *                         description: Подсказка (если есть)
+ *                         nullable: true
+ *                       videoUrl:
+ *                         type: string
+ *                         description: URL видео (если есть)
+ *                         nullable: true
+ *                       category:
+ *                         type: string
+ *                         description: Категория вопроса
+ *                       questionNumber:
+ *                         type: integer
+ *                         description: Номер вопроса в билете
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/random-ticket', isAuthenticated, ticketController.getRandomTicket);
+
 /**
  * @swagger
  * /api/tickets/{number}/start:
