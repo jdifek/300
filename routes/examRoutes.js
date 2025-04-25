@@ -239,7 +239,26 @@ router.post('/marathon/:examId/answer',
  *                       correctOption:
  *                         type: string
  *                         description: Правильный ответ
+ *                       hint:
+ *                         type: string
+ *                         nullable: true
+ *                         description: Подсказка
+ *                       imageUrl:
+ *                         type: string
+ *                         nullable: true
+ *                         description: URL изображения
  *                   description: Подробности о допущенных ошибках
+ *                 timeSpent:
+ *                   type: integer
+ *                   description: Время, затраченное на марафон (в секундах)
+ *                 formattedTimeSpent:
+ *                   type: string
+ *                   description: Форматированное время (например, "15 мин 30 сек")
+ *                 completedAt:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *                   description: Время завершения марафона (null, если не завершён)
  *       401:
  *         description: Не авторизован
  */

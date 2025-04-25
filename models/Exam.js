@@ -34,6 +34,7 @@ const examSchema = new mongoose.Schema({
   startTime: { type: Date, default: Date.now },
   timeLimit: { type: Number, default: 20 * 60 * 1000 }, // 20 минут
   extraTime: { type: Number, default: 0 }, // Дополнительное время
+  completedAt: { type: Date, default: null }, // Новое поле
   mistakesDetails: [ // Новое поле для хранения ошибок
     {
       questionId: { type: String, required: true },

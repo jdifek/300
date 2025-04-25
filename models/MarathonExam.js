@@ -26,6 +26,7 @@ const marathonExamSchema = new mongoose.Schema({
   startTime: { type: Date, default: Date.now },
   completedQuestions: { type: Number, default: 0 },
   completedAt: { type: Date, default: null }, // Новое поле для времени завершения
+  timeLimit: { type: Number, default: 20 * 60 * 1000 }, // 20 минут
   answeredQuestions: [ // Новое поле для хранения отвеченных вопросов
     {
       questionId: { type: String, required: true },
