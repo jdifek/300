@@ -1,5 +1,6 @@
 const ticketService = require('../services/ticketService');
 const ApiError = require('../exceptions/api-error');
+const User = require('../models/User');
 
 class TicketController {
   async getAllTickets(req, res, next) {
