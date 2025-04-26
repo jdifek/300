@@ -104,6 +104,30 @@ router.get('/progress', isAuthenticated, ticketController.getTicketProgress);
 
 /**
  * @swagger
+ * /api/tickets/categories:
+ *   get:
+ *     summary: Получить все категории вопросов
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список категорий вопросов
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: string
+ *                 description: Название категории
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/categories', isAuthenticated, ticketController.getAllCategories);
+/**
+ * @swagger
  * /api/tickets:
  *   get:
  *     summary: Получить все билеты
@@ -176,6 +200,282 @@ router.get('/progress', isAuthenticated, ticketController.getTicketProgress);
  *         description: Ошибка сервера
  */
 router.get('/', isAuthenticated, ticketController.getAllTickets);
+
+/**
+ * @swagger
+ * /api/tickets/progress:
+ *   get:
+ *     summary: Получить прогресс пользователя по билетам
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Прогресс пользователя по билетам
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalTickets:
+ *                   type: integer
+ *                 ticketsCompleted:
+ *                   type: integer
+ *                 totalMistakes:
+ *                   type: integer
+ *                 ticketsProgress:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       ticketNumber:
+ *                         type: integer
+ *                       isCompleted:
+ *                         type: boolean
+ *                       mistakes:
+ *                         type: integer
+ *                       correctAnswers:
+ *                         type: integer
+ *                       totalQuestions:
+ *                         type: integer
+ *                       completedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                       timeSpent:
+ *                         type: number
+ *                         nullable: true
+ *                       mistakesDetails:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             questionId:
+ *                               type: string
+ *                             questionText:
+ *                               type: string
+ *                             selectedOption:
+ *                               type: string
+ *                             correctOption:
+ *                               type: string
+ *                       answeredQuestions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             questionId:
+ *                               type: string
+ *                             selectedOption:
+ *                               type: string
+ *                             isCorrect:
+ *                               type: boolean
+ *                 nextTicket:
+ *                   type: integer
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/progress', isAuthenticated, ticketController.getTicketProgress);
+
+/**
+ * @swagger
+ * /api/tickets/category/progress:
+ *   get:
+ *     summary: Получить прогресс пользователя по категориям вопросов
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Прогресс пользователя по категориям
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalCategories:
+ *                   type: integer
+ *                   description: Общее количество категорий
+ *                 categoriesProgress:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       category:
+ *                         type: string
+ *                         description: Название категории
+ *                       totalQuestions:
+ *                         type: integer
+ *                         description: Общее количество вопросов в категории
+ *                       correctAnswers:
+ *                         type: integer
+ *                         description: Количество правильных ответов
+ *                       mistakes:
+ *                         type: integer
+ *                         description: Количество ошибок
+ *                       startedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Дата начала работы с категорией
+ *                         nullable: true
+ *                       answeredQuestions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             questionId:
+ *                               type: string
+ *                             selectedOption:
+ *                               type: string
+ *                             isCorrect:
+ *                               type: boolean
+ *                             hint:
+ *                               type: string
+ *                             imageUrl:
+ *                               type: string
+ *                             videoUrl:
+ *                               type: string
+ *                       mistakesDetails:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             questionId:
+ *                               type: string
+ *                             questionText:
+ *                               type: string
+ *                             selectedOption:
+ *                               type: string
+ *                             correctOption:
+ *                               type: string
+ *                             hint:
+ *                               type: string
+ *                             imageUrl:
+ *                               type: string
+ *                             videoUrl:
+ *                               type: string
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/category/progress', isAuthenticated, ticketController.getCategoryProgress);
+
+/**
+ * @swagger
+ * /api/tickets/category/{category}/start:
+ *   post:
+ *     summary: Начать работу с категорией вопросов
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Название категории
+ *     responses:
+ *       200:
+ *         description: Категория успешно начата
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Category started successfully"
+ *                 category:
+ *                   type: string
+ *                 totalQuestions:
+ *                   type: integer
+ *       404:
+ *         description: Категория не найдена
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.post('/category/:category/start', isAuthenticated, ticketController.startCategory);
+
+/**
+ * @swagger
+ * /api/tickets/category/{category}/submit:
+ *   post:
+ *     summary: Отправить ответы на вопросы категории
+ *     tags: [Tickets]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Название категории
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               answers:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     questionId:
+ *                       type: string
+ *                     selectedOption:
+ *                       type: string
+ *                 description: Ответы пользователя
+ *     responses:
+ *       200:
+ *         description: Результаты отправки ответов
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Category answers submitted successfully"
+ *                 results:
+ *                   type: object
+ *                   properties:
+ *                     category:
+ *                       type: string
+ *                     totalQuestions:
+ *                       type: integer
+ *                     correctAnswers:
+ *                       type: integer
+ *                     mistakes:
+ *                       type: integer
+ *                     successRate:
+ *                       type: number
+ *                     answers:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: string
+ *                           selectedOption:
+ *                             type: string
+ *                           isCorrect:
+ *                             type: boolean
+ *       404:
+ *         description: Категория не найдена
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.post('/category/:category/submit', isAuthenticated, ticketController.submitCategory);
 
 /**
  * @swagger
@@ -709,5 +1009,6 @@ router.get('/:number', isAuthenticated, ticketController.getTicketByNumber);
  *         description: Ошибка сервера
  */
 router.post('/:number/submit', isAuthenticated, ticketController.submitTicket);
+
 
 module.exports = router;

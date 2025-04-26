@@ -43,6 +43,35 @@ const TicketProgressSchema = new mongoose.Schema({
   ]
 });
 
+const CategoryProgressSchema = new mongoose.Schema({
+  category: { type: String, required: true }, // Название категории
+  totalQuestions: { type: Number, default: 0 }, // Общее количество вопросов в категории
+  correctAnswers: { type: Number, default: 0 }, // Количество правильных ответов
+  mistakes: { type: Number, default: 0 }, // Количество ошибок
+  startedAt: { type: Date }, // Время начала работы с категорией
+  answeredQuestions: [
+    {
+      questionId: { type: String, required: true },
+      selectedOption: { type: String, required: true },
+      isCorrect: { type: Boolean, required: true },
+      hint: { type: String },
+      imageUrl: { type: String },
+      videoUrl: { type: String }
+    }
+  ],
+  mistakesDetails: [
+    {
+      questionId: { type: String, required: true },
+      questionText: { type: String, required: true },
+      selectedOption: { type: String, required: true },
+      correctOption: { type: String, required: true },
+      hint: { type: String },
+      imageUrl: { type: String },
+      videoUrl: { type: String }
+    }
+  ]
+});
+
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, trim: true },
   telegramId: { type: String, required: true, unique: true, sparse: true },
@@ -61,6 +90,7 @@ const UserSchema = new mongoose.Schema({
   },
   coursesProgress: [CourseProgressSchema],
   ticketsProgress: [TicketProgressSchema],
+  categoriesProgress: [CategoryProgressSchema], 
   refreshToken: { type: String },
   firstLogin: { type: Date, default: Date.now },
   subscribedToChannel: { type: Boolean, default: false },

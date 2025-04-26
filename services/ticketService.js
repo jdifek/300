@@ -55,6 +55,204 @@ class TicketService {
       throw new Error(`Ошибка при получении случайных вопросов: ${error.message}`);
     }
   }
+  async getCategoryProgress(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw ApiError.NotFound('Пользователь не найден');
+      }
+      const tickets = await Ticket.find();
+      const allQuestions = tickets.flatMap(ticket => ticket.questions);
+      const categories = [...new Set(allQuestions.map(q => q.category))];
+      const categoryProgress = categories.map(category => {
+        const questionsInCategory = allQuestions.filter(q => q.category === category);
+        const totalQuestions = questionsInCategory.length;
+        const userCategoryProgress = user.categoriesProgress.find(cp => cp.category === category) || {
+          category,
+          totalQuestions,
+          correctAnswers: 0,
+          mistakes: 0,
+          answeredQuestions: [],
+          mistakesDetails: [],
+          startedAt: null
+        };
+        return {
+          category,
+          totalQuestions,
+          correctAnswers: userCategoryProgress.correctAnswers,
+          mistakes: userCategoryProgress.mistakes,
+          answeredQuestions: userCategoryProgress.answeredQuestions,
+          mistakesDetails: userCategoryProgress.mistakesDetails,
+          startedAt: userCategoryProgress.startedAt
+        };
+      });
+      return {
+        totalCategories: categories.length,
+        categoriesProgress: categoryProgress
+      };
+    } catch (error) {
+      throw new Error(`Ошибка при получении прогресса по категориям: ${error.message}`);
+    }
+  }
+
+  async startCategory(category, userId) {
+    try {
+      const tickets = await Ticket.find();
+      const allQuestions = tickets.flatMap(ticket => ticket.questions);
+      const categoryQuestions = allQuestions.filter(q => q.category === category);
+      if (categoryQuestions.length === 0) {
+        throw ApiError.NotFound('Категория не найдена или не содержит вопросов');
+      }
+      const user = await User.findById(userId);
+      if (!user) {
+        throw ApiError.NotFound('Пользователь не найден');
+      }
+      const categoryProgressIndex = user.categoriesProgress.findIndex(cp => cp.category === category);
+      const newCategoryProgress = {
+        category,
+        totalQuestions: categoryQuestions.length,
+        correctAnswers: 0,
+        mistakes: 0,
+        startedAt: new Date(),
+        answeredQuestions: [],
+        mistakesDetails: []
+      };
+      if (categoryProgressIndex !== -1) {
+        const existingProgress = user.categoriesProgress[categoryProgressIndex];
+        if (existingProgress.answeredQuestions.length >= existingProgress.totalQuestions) {
+          user.categoriesProgress.splice(categoryProgressIndex, 1);
+          user.categoriesProgress.push(newCategoryProgress);
+          console.log(`🔄 Сброс прогресса для категории ${category}`);
+        } else {
+          if (!existingProgress.startedAt) {
+            existingProgress.startedAt = new Date();
+          }
+        }
+      } else {
+        user.categoriesProgress.push(newCategoryProgress);
+      }
+      await user.save();
+      return {
+        category,
+        totalQuestions: categoryQuestions.length,
+        message: 'Category started successfully'
+      };
+    } catch (error) {
+      throw new Error(`Ошибка при начале категории: ${error.message}`);
+    }
+  }
+
+  async submitCategory(category, userId, answers) {
+    try {
+      const tickets = await Ticket.find();
+      const allQuestions = tickets.flatMap(ticket => ticket.questions);
+      const categoryQuestions = allQuestions.filter(q => q.category === category);
+      if (categoryQuestions.length === 0) {
+        throw ApiError.NotFound('Категория не найдена или не содержит вопросов');
+      }
+      const user = await User.findById(userId);
+      if (!user) {
+        throw ApiError.NotFound('Пользователь не найден');
+      }
+      let categoryProgress = user.categoriesProgress.find(cp => cp.category === category);
+      if (!categoryProgress) {
+        categoryProgress = {
+          category,
+          totalQuestions: categoryQuestions.length,
+          correctAnswers: 0,
+          mistakes: 0,
+          startedAt: new Date(),
+          answeredQuestions: [],
+          mistakesDetails: []
+        };
+        user.categoriesProgress.push(categoryProgress);
+      }
+      let correctAnswersDelta = 0;
+      let mistakesDelta = 0;
+      const detailedResults = [];
+      answers.forEach(answer => {
+        const alreadyAnswered = categoryProgress.answeredQuestions.find(
+          q => q.questionId === answer.questionId
+        );
+        if (alreadyAnswered) {
+          console.log(`⚠️ Вопрос ${answer.questionId} уже был отвечен`);
+          return;
+        }
+        const question = categoryQuestions.find(q => q._id.toString() === answer.questionId);
+        if (!question) {
+          detailedResults.push({
+            questionId: answer.questionId,
+            selectedOption: answer.selectedOption,
+            isCorrect: false
+          });
+          mistakesDelta++;
+          categoryProgress.answeredQuestions.push({
+            questionId: answer.questionId,
+            selectedOption: answer.selectedOption,
+            isCorrect: false,
+            hint: null,
+            imageUrl: null,
+            videoUrl: null
+          });
+          categoryProgress.mistakesDetails.push({
+            questionId: answer.questionId,
+            questionText: 'Вопрос не найден',
+            selectedOption: answer.selectedOption,
+            correctOption: 'Неизвестно',
+            hint: null,
+            imageUrl: null,
+            videoUrl: null
+          });
+          return;
+        }
+        const correctOption = question.options.find(opt => opt.isCorrect);
+        const isCorrect = correctOption && answer.selectedOption === correctOption.text;
+        if (isCorrect) {
+          correctAnswersDelta++;
+        } else {
+          mistakesDelta++;
+          categoryProgress.mistakesDetails.push({
+            questionId: answer.questionId,
+            questionText: question.text,
+            selectedOption: answer.selectedOption,
+            correctOption: correctOption.text,
+            hint: question.hint || null,
+            imageUrl: question.imageUrl || null,
+            videoUrl: question.videoUrl || null
+          });
+        }
+        detailedResults.push({
+          questionId: answer.questionId,
+          selectedOption: answer.selectedOption,
+          isCorrect
+        });
+        categoryProgress.answeredQuestions.push({
+          questionId: answer.questionId,
+          selectedOption: answer.selectedOption,
+          isCorrect,
+          hint: question.hint || null,
+          imageUrl: question.imageUrl || null,
+          videoUrl: question.videoUrl || null
+        });
+      });
+      categoryProgress.correctAnswers += correctAnswersDelta;
+      categoryProgress.mistakes += mistakesDelta;
+      user.stats.mistakes = user.ticketsProgress.reduce((acc, tp) => acc + tp.mistakes, 0) +
+                           user.categoriesProgress.reduce((acc, cp) => acc + cp.mistakes, 0);
+      await user.save();
+      const successRate = (categoryProgress.correctAnswers / categoryProgress.totalQuestions) * 100;
+      return {
+        category,
+        totalQuestions: categoryProgress.totalQuestions,
+        correctAnswers: categoryProgress.correctAnswers,
+        mistakes: categoryProgress.mistakes,
+        successRate,
+        answers: detailedResults
+      };
+    } catch (error) {
+      throw new Error(`Ошибка при отправке ответов по категории: ${error.message}`);
+    }
+  }
 
   async startTicket(number, userId) {
     try {
