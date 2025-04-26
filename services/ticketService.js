@@ -68,21 +68,37 @@ class TicketService {
         throw ApiError.NotFound('Пользователь не найден');
       }
 
-      let ticketProgress = user.ticketsProgress.find(tp => tp.ticketNumber === number);
-      if (!ticketProgress) {
-        ticketProgress = {
-          ticketNumber: number,
-          startedAt: new Date(), // Устанавливаем время начала
-          isCompleted: false,
-          mistakes: 0,
-          correctAnswers: 0,
-          totalQuestions: ticket.questions.length,
-          answeredQuestions: [],
-          mistakesDetails: []
-        };
-        user.ticketsProgress.push(ticketProgress);
-      } else if (!ticketProgress.startedAt) {
-        ticketProgress.startedAt = new Date(); // Устанавливаем, если не было установлено
+      // Находим существующий прогресс билета
+      const ticketProgressIndex = user.ticketsProgress.findIndex(tp => tp.ticketNumber === number);
+
+      // Создаем новый объект прогресса
+      const newTicketProgress = {
+        ticketNumber: number,
+        startedAt: new Date(),
+        isCompleted: false,
+        mistakes: 0,
+        correctAnswers: 0,
+        totalQuestions: ticket.questions.length,
+        answeredQuestions: [],
+        mistakesDetails: [],
+        completedAt: null
+      };
+
+      if (ticketProgressIndex !== -1) {
+        // Если билет существует и завершен, удаляем старый прогресс
+        if (user.ticketsProgress[ticketProgressIndex].isCompleted) {
+          user.ticketsProgress.splice(ticketProgressIndex, 1);
+          user.ticketsProgress.push(newTicketProgress); // Добавляем новый прогресс в конец
+          console.log(`🔄 Сброс завершенного билета ${number}, новый прогресс добавлен`);
+        } else {
+          // Если билет не завершен, просто обновляем startedAt, если нужно
+          if (!user.ticketsProgress[ticketProgressIndex].startedAt) {
+            user.ticketsProgress[ticketProgressIndex].startedAt = new Date();
+          }
+        }
+      } else {
+        // Если билета нет, добавляем новый прогресс
+        user.ticketsProgress.push(newTicketProgress);
       }
 
       await user.save();
@@ -116,6 +132,7 @@ class TicketService {
 
       let ticketProgress = user.ticketsProgress.find(tp => tp.ticketNumber === number);
       if (!ticketProgress) {
+        // Если прогресса нет, создаем новый
         ticketProgress = {
           ticketNumber: number,
           startedAt: new Date(),
@@ -129,15 +146,35 @@ class TicketService {
         };
         user.ticketsProgress.push(ticketProgress);
         console.log('➕ Добавлен новый прогресс по билету:', ticketProgress);
+      } else if (ticketProgress.isCompleted) {
+        // Если билет завершен, сбрасываем прогресс
+        const ticketProgressIndex = user.ticketsProgress.findIndex(tp => tp.ticketNumber === number);
+        ticketProgress = {
+          ticketNumber: number,
+          startedAt: new Date(),
+          isCompleted: false,
+          mistakes: 0,
+          correctAnswers: 0,
+          totalQuestions: ticket.questions.length,
+          answeredQuestions: [],
+          mistakesDetails: [],
+          completedAt: null
+        };
+        user.ticketsProgress.splice(ticketProgressIndex, 1);
+        user.ticketsProgress.push(ticketProgress);
+        console.log(`🔄 Сброс завершенного билета ${number} при отправке, новый прогресс добавлен`);
       }
 
       answers.forEach(answer => {
-        const alreadyAnswered = ticketProgress.answeredQuestions.find(
-          q => q.questionId === answer.questionId
-        );
-        if (alreadyAnswered) {
-          console.log(`⚠️ Вопрос ${answer.questionId} уже был отвечен ранее`);
-          return;
+        // Пропускаем уже отвеченные вопросы только для незавершенных билетов
+        if (!ticketProgress.isCompleted) {
+          const alreadyAnswered = ticketProgress.answeredQuestions.find(
+            q => q.questionId === answer.questionId
+          );
+          if (alreadyAnswered) {
+            console.log(`⚠️ Вопрос ${answer.questionId} уже был отвечен ранее`);
+            return;
+          }
         }
 
         const question = ticket.questions.find(q => q._id.toString() === answer.questionId);
@@ -199,8 +236,7 @@ class TicketService {
           isCorrect,
           hint: question.hint || null,
           imageUrl: question.imageUrl || null,
-          videoUrl: question.videoUrl || null
-
+          videoUrl: null
         });
 
         console.log(`📘 Вопрос ${question._id}: ответ "${answer.selectedOption}", правильный: "${correctOption?.text}", результат: ${isCorrect}, hint: "${question.hint || 'нет'}", imageUrl: "${question.imageUrl || 'нет'}"`);
@@ -271,31 +307,31 @@ class TicketService {
         }
       }
 
-     // Формируем ticketsProgress, добавляя videoUrl из Ticket
-    const ticketsProgress = user.ticketsProgress.map(tp => {
-      const ticket = allTickets.find(t => t.number === tp.ticketNumber);
-      return {
-        ticketNumber: tp.ticketNumber,
-        isCompleted: tp.isCompleted,
-        mistakes: tp.mistakes,
-        correctAnswers: tp.correctAnswers,
-        totalQuestions: tp.totalQuestions,
-        completedAt: tp.completedAt,
-        timeSpent: tp.startedAt && tp.completedAt
-          ? (new Date(tp.completedAt) - new Date(tp.startedAt)) / 1000 // Время в секундах
-          : null,
-        mistakesDetails: tp.mistakesDetails,
-        answeredQuestions: tp.answeredQuestions.map(answer => ({
-          questionId: answer.questionId,
-          selectedOption: answer.selectedOption,
-          isCorrect: answer.isCorrect,
-          hint: answer.hint,
-          imageUrl: answer.imageUrl,
-          videoUrl: answer.videoUrl
-        })),
-        videoUrl: ticket ? ticket.videoUrl : null // Добавляем videoUrl билета
-      };
-    });
+      // Формируем ticketsProgress, добавляя videoUrl из Ticket
+      const ticketsProgress = user.ticketsProgress.map(tp => {
+        const ticket = allTickets.find(t => t.number === tp.ticketNumber);
+        return {
+          ticketNumber: tp.ticketNumber,
+          isCompleted: tp.isCompleted,
+          mistakes: tp.mistakes,
+          correctAnswers: tp.correctAnswers,
+          totalQuestions: tp.totalQuestions,
+          completedAt: tp.completedAt,
+          timeSpent: tp.startedAt && tp.completedAt
+            ? (new Date(tp.completedAt) - new Date(tp.startedAt)) / 1000 // Время в секундах
+            : null,
+          mistakesDetails: tp.mistakesDetails,
+          answeredQuestions: tp.answeredQuestions.map(answer => ({
+            questionId: answer.questionId,
+            selectedOption: answer.selectedOption,
+            isCorrect: answer.isCorrect,
+            hint: answer.hint,
+            imageUrl: answer.imageUrl,
+            videoUrl: answer.videoUrl
+          })),
+          videoUrl: ticket ? ticket.videoUrl : null // Добавляем videoUrl билета
+        };
+      });
 
       return {
         totalTickets,
