@@ -158,15 +158,34 @@ class TicketController {
 
   async getAllCategories(req, res, next) {
     try {
-      // Получаем все билеты и извлекаем уникальные категории
       const tickets = await Ticket.find();
-      const categories = [...new Set(tickets.flatMap(ticket => ticket.questions.map(question => question.category)))];
+      // Используем Set для уникальных значений
+      const uniqueCategories = new Set();
+      tickets.forEach(ticket => {
+        ticket.questions.forEach(question => {
+          if (question.category) {
+            uniqueCategories.add(question.category);
+          }
+        });
+      });
 
-      res.json(categories);
+      // Получаем количество вопросов для каждой категории
+      const categoriesWithCount = Array.from(uniqueCategories).map(category => {
+        const questionsCount = tickets.reduce((count, ticket) => {
+          return count + ticket.questions.filter(q => q.category === category).length;
+        }, 0);
+        
+        return {
+          name: category,
+          questions: questionsCount
+        };
+      });
+
+      res.json(categoriesWithCount);
     } catch (error) {
       next(error);
     }
-  }
+}
 }
 
 module.exports = new TicketController();
