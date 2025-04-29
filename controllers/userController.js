@@ -1,5 +1,6 @@
 // controllers/userController.js
 const User = require('../models/User');
+const SubscriptionHistory = require('../models/SubscriptionHistory');
 const jwt = require('jsonwebtoken');
 
 const generateTokens = (userId) => {
@@ -137,7 +138,7 @@ exports.updateProfile = async (req, res) => {
 
 exports.updateSubscription = async (req, res) => {
   try {
-    const { type, autoRenew } = req.body;
+    const { type, autoRenew, planName } = req.body;
     const expiresAt = type === 'premium' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null;
 
     const user = await User.findByIdAndUpdate(
@@ -146,6 +147,19 @@ exports.updateSubscription = async (req, res) => {
       { new: true }
     ).select('-refreshToken');
     if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (type === 'premium' && planName) {
+      const plan = await SubscriptionPlan.findOne({ name: planName });
+      if (plan) {
+        await new SubscriptionHistory({
+          userId: user._id,
+          planName,
+          startDate: new Date(),
+          endDate: expiresAt,
+        }).save();
+      }
+    }
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });

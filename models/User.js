@@ -73,6 +73,9 @@ const CategoryProgressSchema = new mongoose.Schema({
 });
 
 const UserSchema = new mongoose.Schema({
+  isBlocked: { type: Boolean, default: false },
+  lastLogin: { type: Date },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
   username: { type: String, required: true, trim: true },
   telegramId: { type: String, required: true, unique: true, sparse: true },
   avatar: { type: String, default: 'default-avatar.png' },

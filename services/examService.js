@@ -2,6 +2,8 @@ const Exam = require('../models/Exam');
 const Ticket = require('../models/Ticket');
 const MarathonExam = require('../models/MarathonExam');
 const ExtraQuestion = require('../models/ExtraQuestion');
+const ApiError = require('../exceptions/api-error');
+
 
 class ExamService {
   // Получить все вопросы для марафона (без правильных ответов)
@@ -145,64 +147,120 @@ class ExamService {
     }
   }
 
-  // Обработать ответ в марафонском экзамене
+
   async processAnswer(examId, questionIndex, userAnswer) {
     try {
+      // Проверяем examId
+      if (!examId) {
+        throw new ApiError(400, 'examId не указан');
+      }
+  
+      // Находим экзамен
       const exam = await Exam.findById(examId);
       if (!exam) {
-        throw new Error('Экзамен не найден');
+        throw new ApiError(404, `Экзамен с ID ${examId} не найден`);
       }
   
-      // Загружаем билет и дополнительные вопросы
+      // Проверяем ticketNumber
+      if (!exam.ticketNumber) {
+        throw new ApiError(400, `ticketNumber отсутствует в экзамене (examId: ${examId})`);
+      }
+  
+      // Загружаем билет
       const ticket = await Ticket.findOne({ number: exam.ticketNumber });
+      if (!ticket) {
+        throw new ApiError(404, `Билет с номером ${exam.ticketNumber} не найден`);
+      }
+  
+      // Загружаем дополнительные вопросы
       const extraQuestions = await ExtraQuestion.find({
-        _id: { $in: exam.extraQuestions.map(q => q.questionId) }
+        _id: { $in: exam.extraQuestions.map(q => q.questionId) },
       });
   
-      // Проверяем, не истекло ли время
-      const elapsedTime = Date.now() - exam.startTime.getTime();
-      if (elapsedTime > exam.timeLimit + exam.extraTime) {
-        exam.status = 'failed';
-        await exam.save();
-        throw new Error('Время экзамена истекло');
+      // Проверяем startTime и timeLimit
+      if (!exam.startTime) {
+        throw new ApiError(400, `startTime отсутствует в экзамене (examId: ${examId})`);
+      }
+      if (!exam.timeLimit) {
+        throw new ApiError(400, `timeLimit отсутствует в экзамене (examId: ${examId})`);
       }
   
-      // Обрабатываем ответ
+      // Проверяем время
+      const elapsedTime = Date.now() - exam.startTime.getTime();
+      if (elapsedTime > exam.timeLimit + (exam.extraTime || 0)) {
+        exam.status = 'failed';
+        exam.completedAt = new Date();
+        await exam.save();
+        throw new ApiError(400, 'Время экзамена истекло');
+      }
+  
+      // Проверяем questionIndex
+      if (questionIndex < 0 || questionIndex >= exam.questions.length + exam.extraQuestions.length) {
+        throw new ApiError(400, `Неверный questionIndex: ${questionIndex} (доступно вопросов: ${exam.questions.length + exam.extraQuestions.length})`);
+      }
+  
+      // Обрабатываем вопрос
       let question;
       let questionData;
       if (questionIndex < exam.questions.length) {
         question = exam.questions[questionIndex];
-        questionData = ticket.questions.find(q => q._id.toString() === question.questionId.toString());
+        if (!question.questionId || !question.questionId._id) {
+          throw new ApiError(400, `Некорректный questionId в вопросе с индексом ${questionIndex} (examId: ${examId})`);
+        }
+        questionData = ticket.questions.find(
+          q => q._id.toString() === question.questionId._id.toString()
+        );
       } else {
         question = exam.extraQuestions[questionIndex - exam.questions.length];
-        questionData = extraQuestions.find(q => q._id.toString() === question.questionId.toString());
+        questionData = extraQuestions.find(
+          q => q._id.toString() === question.questionId.toString()
+        );
       }
   
       if (!questionData) {
-        throw new Error('Вопрос не найден');
+        throw new ApiError(404, `Вопрос с ID ${question.questionId._id || question.questionId} не найден в билете с номером ${exam.ticketNumber} или дополнительных вопросах`);
       }
   
-      const correctAnswer = questionData.options.findIndex((opt) => opt.isCorrect);
+      // Проверяем options
+      if (!questionData.options || questionData.options.length === 0) {
+        throw new ApiError(400, `Вопрос с ID ${question.questionId._id || question.questionId} не содержит вариантов ответа`);
+      }
+  
+      // Находим правильный ответ
+      const correctAnswer = questionData.options.findIndex(opt => opt.isCorrect);
+      if (correctAnswer === -1) {
+        throw new ApiError(400, `Вопрос с ID ${question.questionId._id || question.questionId} не имеет правильного ответа`);
+      }
+  
+      // Проверяем userAnswer
+      if (userAnswer < 0 || userAnswer >= questionData.options.length) {
+        throw new ApiError(400, `Неверный userAnswer: ${userAnswer} (доступно вариантов: ${questionData.options.length})`);
+      }
+  
       const selectedOptionText = questionData.options[userAnswer]?.text || 'Неизвестно';
       const correctOptionText = questionData.options[correctAnswer]?.text || 'Неизвестно';
   
+      // Обновляем ответ
       question.userAnswer = userAnswer;
       question.isCorrect = userAnswer === correctAnswer;
   
       if (!question.isCorrect) {
-        exam.mistakes += 1;
+        exam.mistakes = (exam.mistakes || 0) + 1;
   
-        // Добавляем информацию об ошибке в mistakesDetails
+        // Добавляем информацию об ошибке
         exam.mistakesDetails.push({
-          questionId: question.questionId.toString(),
+          questionId: (question.questionId._id || question.questionId).toString(),
           questionText: questionData.text,
           selectedOption: selectedOptionText,
-          correctOption: correctOptionText
+          correctOption: correctOptionText,
+          hint: questionData.hint || null,
+          imageUrl: questionData.imageUrl || null,
         });
   
-        // Если это третья ошибка, экзамен провален
+        // Проверяем количество ошибок
         if (exam.mistakes >= 3) {
           exam.status = 'failed';
+          exam.completedAt = new Date();
           await exam.save();
           return exam;
         }
@@ -211,18 +269,24 @@ class ExamService {
         await this.addExtraQuestions(exam, questionData.category);
       }
   
-      // Проверяем, закончен ли экзамен
-      const allAnswered = exam.questions.every((q) => q.userAnswer !== null) &&
-        exam.extraQuestions.every((q) => q.userAnswer !== null);
+      // Проверяем завершение экзамена
+      const allAnswered =
+        exam.questions.every(q => q.userAnswer !== null) &&
+        exam.extraQuestions.every(q => q.userAnswer !== null);
   
       if (allAnswered) {
         exam.status = exam.mistakes < 3 ? 'passed' : 'failed';
+        exam.completedAt = new Date();
       }
   
       await exam.save();
       return exam;
     } catch (error) {
-      throw new Error(`Ошибка при обработке ответа: ${error.message}`);
+      console.error(`Ошибка в processAnswer (examId: ${examId}, questionIndex: ${questionIndex}, userAnswer: ${userAnswer}):`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при обработке ответа: ${error.message}`);
     }
   }
 
