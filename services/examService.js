@@ -353,17 +353,65 @@ class ExamService {
       throw new Error(`Ошибка при получении вопросов: ${error.message}`);
     }
   }
-  async selectTicket() {
+  async selectTicket(userId) {
     try {
-      const tickets = await Ticket.find({}, 'number');
-      if (tickets.length === 0) {
-        throw new Error('В базе данных нет билетов');
+      // Проверяем, что userId передан
+      if (!userId) {
+        throw new ApiError(400, 'ID пользователя обязателен');
       }
 
+      // Получаем все билеты
+      const tickets = await Ticket.find({}, 'number');
+      if (tickets.length === 0) {
+        throw new ApiError(404, 'В базе данных нет билетов');
+      }
+
+      // Выбираем случайный билет
       const randomIndex = Math.floor(Math.random() * tickets.length);
-      return tickets[randomIndex].number;
+      const ticketNumber = tickets[randomIndex].number;
+
+      // Находим последний завершенный экзамен пользователя
+      const lastExam = await Exam.findOne({
+        userId,
+        status: { $in: ['passed', 'failed'] }, // Учитываем только завершенные экзамены
+      })
+        .sort({ completedAt: -1 }) // Сортируем по времени завершения, чтобы взять последний
+        .lean();
+
+      // Формируем результат последнего экзамена (если он есть)
+      let lastExamResult = null;
+      if (lastExam) {
+        const totalQuestions = lastExam.questions.length + lastExam.extraQuestions.length;
+        const correctAnswers =
+          lastExam.questions.filter(q => q.isCorrect).length +
+          lastExam.extraQuestions.filter(q => q.isCorrect).length;
+
+        lastExamResult = {
+          examId: lastExam._id.toString(),
+          ticketNumber: lastExam.ticketNumber,
+          status: lastExam.status,
+          statistics: {
+            totalQuestions,
+            correctAnswers,
+            mistakes: lastExam.mistakes || 0,
+            timeSpent: lastExam.completedAt
+              ? Math.floor((lastExam.completedAt.getTime() - lastExam.startTime.getTime()) / 1000) * 1000 // Время в миллисекундах
+              : 0,
+          },
+        };
+      }
+
+      // Возвращаем результат в формате, указанном в Swagger
+      return {
+        ticketNumber,
+        lastExamResult,
+      };
     } catch (error) {
-      throw new Error(`Ошибка при выборе билета: ${error.message}`);
+      console.error(`Ошибка в selectTicket (userId: ${userId}):`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при выборе билета: ${error.message}`);
     }
   }
 
@@ -411,44 +459,33 @@ class ExamService {
 
   async addExtraQuestions(exam, category) {
     try {
-      if (exam.mistakes === 1) {
-        // Первая ошибка: добавляем 5 вопросов
-        let extraQuestions = await ExtraQuestion.find({ category }).limit(5);
-        if (extraQuestions.length < 5) {
-          const additionalQuestions = await ExtraQuestion.aggregate([
-            { $match: { category: { $ne: category } } },
-            { $sample: { size: 5 - extraQuestions.length } }
-          ]);
-          extraQuestions = extraQuestions.concat(additionalQuestions);
-        }
-
-        exam.extraQuestions = extraQuestions.map((q) => ({
-          questionId: q._id,
-          userAnswer: null,
-          isCorrect: null
-        }));
-        exam.extraTime = 5 * 60 * 1000; // 5 минут
-      } else if (exam.mistakes === 2) {
-        // Вторая ошибка: добавляем еще 5 вопросов
-        let extraQuestions = await ExtraQuestion.find({ category }).limit(5);
-        if (extraQuestions.length < 5) {
-          const additionalQuestions = await ExtraQuestion.aggregate([
-            { $match: { category: { $ne: category } } },
-            { $sample: { size: 5 - extraQuestions.length } }
-          ]);
-          extraQuestions = extraQuestions.concat(additionalQuestions);
-        }
-
-        exam.extraQuestions.push(...extraQuestions.map((q) => ({
-          questionId: q._id,
-          userAnswer: null,
-          isCorrect: null
-        })));
-        if (exam.mistakes === 1) {
-          exam.extraTime += 5 * 60 * 1000; // Добавляем 5 минут
-        } else if (exam.mistakes === 2) {
-          exam.extraTime += 5 * 60 * 1000; // Добавляем еще 5 минут (итого 10)
-        }      }
+      // Добавляем вопросы только если ошибок меньше 3 (при 3-й ошибке экзамен уже завершается)
+      if (exam.mistakes >= 3) {
+        return; // Экзамен завершён, дополнительные вопросы не добавляем
+      }
+  
+      // Добавляем 5 новых вопросов за каждую ошибку
+      let extraQuestions = await ExtraQuestion.find({ category }).limit(5);
+      if (extraQuestions.length < 5) {
+        const additionalQuestions = await ExtraQuestion.aggregate([
+          { $match: { category: { $ne: category } } },
+          { $sample: { size: 5 - extraQuestions.length } }
+        ]);
+        extraQuestions = extraQuestions.concat(additionalQuestions);
+      }
+  
+      // Добавляем новые вопросы в массив extraQuestions
+      exam.extraQuestions.push(...extraQuestions.map((q) => ({
+        questionId: q._id,
+        userAnswer: null,
+        isCorrect: null
+      })));
+  
+      // Добавляем 5 минут дополнительного времени за каждую ошибку
+      exam.extraTime = (exam.extraTime || 0) + 5 * 60 * 1000; // +5 минут за каждую ошибку
+  
+      // Логируем для отладки
+      console.log(`Добавлено 5 дополнительных вопросов после ${exam.mistakes}-й ошибки. Всего дополнительных вопросов: ${exam.extraQuestions.length}`);
     } catch (error) {
       throw new Error(`Ошибка при добавлении дополнительных вопросов: ${error.message}`);
     }
