@@ -179,25 +179,36 @@ class ExamController {
     try {
       const userId = req.user.id; // Получаем ID пользователя из запроса
       const tickets = await Ticket.find().lean(); // Получаем все билеты
-
+  
       // Получаем прогресс пользователя по билетам
       const user = await User.findById(userId).lean();
       const completedTicketNumbers = user.ticketsProgress.map(ticket => ticket.ticketNumber); // Номера билетов, которые пользователь прошел
-
-      // Извлекаем новые вопросы
+  
+      // Извлекаем новые вопросы в формате марафона
       const newQuestions = tickets.flatMap(ticket => {
         if (!completedTicketNumbers.includes(ticket.number)) {
           return ticket.questions.map(question => ({
-            questionId: question._id,
-            questionText: question.text,
-            options: question.options.map(opt => ({ text: opt.text })), // Исключаем isCorrect
-            category: question.category
+            questionId: {
+              _id: question._id,
+              text: question.text,
+              options: question.options.map(opt => ({
+                text: opt.text,
+                // isCorrect исключен для фронтенда, чтобы не раскрывать правильный ответ
+              })),
+              hint: question.hint || null,
+              imageUrl: question.imageUrl || null,
+              videoUrl: question.videoUrl || null,
+              category: question.category,
+              questionNumber: question.questionNumber
+            },
+            userAnswer: null,
+            isCorrect: null
           }));
         }
         return [];
       });
-
-      res.json(newQuestions); // Возвращаем новые вопросы
+  
+      res.json(newQuestions); // Возвращаем новые вопросы в формате марафона
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
