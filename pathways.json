@@ -1,0 +1,11 @@
+[
+    {
+      "videoUrl": "https://example.com/video1.mp4",
+      "town": "Tallinn"
+    },
+    {
+      "videoUrl": "https://example.com/video2.mp4",
+      "town": "Tartu"
+    }
+  ]
+  

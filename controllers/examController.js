@@ -177,40 +177,47 @@ class ExamController {
 
   async getNewQuestions(req, res) {
     try {
-      const userId = req.user.id; // Получаем ID пользователя из запроса
-      const tickets = await Ticket.find().lean(); // Получаем все билеты
+      const userId = req.user?.id; // Убедитесь, что userId доступен
+      if (!userId) {
+        return res.status(401).json({ message: 'Пользователь не аутентифицирован' });
+      }
   
-      // Получаем прогресс пользователя по билетам
+      // Получаем все билеты
+      const tickets = await Ticket.find().lean();
+      if (!tickets.length) {
+        return res.status(404).json({ message: 'Билеты не найдены' });
+      }
+  
+      // Получаем прогресс пользователя
       const user = await User.findById(userId).lean();
-      const completedTicketNumbers = user.ticketsProgress.map(ticket => ticket.ticketNumber); // Номера билетов, которые пользователь прошел
+      if (!user) {
+        return res.status(404).json({ message: 'Пользователь не найден' });
+      }
   
-      // Извлекаем новые вопросы в формате марафона
+      const completedTicketNumbers = user.ticketsProgress?.map(ticket => ticket.ticketNumber) || [];
+  
+      // Формируем новые вопросы
       const newQuestions = tickets.flatMap(ticket => {
         if (!completedTicketNumbers.includes(ticket.number)) {
           return ticket.questions.map(question => ({
-            questionId: {
-              _id: question._id,
-              text: question.text,
-              options: question.options.map(opt => ({
-                text: opt.text,
-                // isCorrect исключен для фронтенда, чтобы не раскрывать правильный ответ
-              })),
-              hint: question.hint || null,
-              imageUrl: question.imageUrl || null,
-              videoUrl: question.videoUrl || null,
-              category: question.category,
-              questionNumber: question.questionNumber
-            },
-            userAnswer: null,
-            isCorrect: null
+            questionId: question._id.toString(),
+            questionText: question.text || 'Вопрос отсутствует',
+            options: question.options || [],
+            category: question.category || 'Без категории',
+            hint: question.hint || null,
+            imageUrl: question.imageUrl || null,
+            videoUrl: question.videoUrl || null,
+            questionNumber: question.questionNumber || null
           }));
         }
         return [];
       });
   
-      res.json(newQuestions); // Возвращаем новые вопросы в формате марафона
+      // Возвращаем пустой массив, если вопросов нет
+      res.json(newQuestions.length ? newQuestions : []);
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      console.error('Ошибка в getNewQuestions:', error);
+      res.status(500).json({ message: `Ошибка сервера: ${error.message}` });
     }
   }
 
