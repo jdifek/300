@@ -3,7 +3,6 @@ const ApiError = require('../exceptions/api-error');
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 
-
 class ExamController {
   async get5question(req, res) {
     try {
@@ -23,7 +22,7 @@ class ExamController {
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
-  };
+  }
 
   async getAllQuestionsByCategory(req, res) {
     try {
@@ -86,6 +85,17 @@ class ExamController {
       next(error);
     }
   }
+
+  async getMarathonResults(req, res, next) {
+    try {
+      const { examId } = req.params;
+      const results = await examService.getMarathonResults(examId);
+      res.json(results);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async selectTicket(req, res, next) {
     try {
       const { userId } = req.body;
@@ -220,7 +230,6 @@ class ExamController {
       res.status(500).json({ message: `Ошибка сервера: ${error.message}` });
     }
   }
-
 }
 
-module.exports = new ExamController(); 
+module.exports = new ExamController();

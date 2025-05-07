@@ -144,42 +144,60 @@ class TicketService {
 
   async submitCategory(category, userId, answers) {
     try {
+      console.log('📩 Запрос на отправку ответов категории:', { category, userId, answers });
+  
+      // Находим все вопросы категории
       const tickets = await Ticket.find();
       const allQuestions = tickets.flatMap(ticket => ticket.questions);
       const categoryQuestions = allQuestions.filter(q => q.category === category);
       if (categoryQuestions.length === 0) {
+        console.warn(`⚠️ Категория ${category} не найдена или не содержит вопросов`);
         throw ApiError.NotFound('Категория не найдена или не содержит вопросов');
       }
+      console.log('✅ Найдено вопросов в категории:', categoryQuestions.length);
+  
+      // Находим пользователя
       const user = await User.findById(userId);
       if (!user) {
+        console.warn(`⚠️ Пользователь с ID ${userId} не найден`);
         throw ApiError.NotFound('Пользователь не найден');
       }
-      let categoryProgress = user.categoriesProgress.find(cp => cp.category === category);
-      if (!categoryProgress) {
-        categoryProgress = {
-          category,
-          totalQuestions: categoryQuestions.length,
-          correctAnswers: 0,
-          mistakes: 0,
-          startedAt: new Date(),
-          answeredQuestions: [],
-          mistakesDetails: []
-        };
-        user.categoriesProgress.push(categoryProgress);
+      console.log('✅ Пользователь найден:', user.email || user._id);
+  
+      // Находим индекс прогресса категории
+      const categoryProgressIndex = user.categoriesProgress.findIndex(cp => cp.category === category);
+  
+      // Создаем новый объект прогресса
+      const newCategoryProgress = {
+        category,
+        totalQuestions: categoryQuestions.length,
+        correctAnswers: 0,
+        mistakes: 0,
+        startedAt: new Date(),
+        answeredQuestions: [],
+        mistakesDetails: []
+      };
+  
+      // Если прогресс существует, удаляем его
+      if (categoryProgressIndex !== -1) {
+        user.categoriesProgress.splice(categoryProgressIndex, 1);
+        console.log(`🔄 Сброс существующего прогресса для категории ${category}`);
       }
+  
+      // Добавляем новый прогресс
+      user.categoriesProgress.push(newCategoryProgress);
+      const categoryProgress = user.categoriesProgress.find(cp => cp.category === category);
+      console.log('➕ Новый прогресс категории создан:', categoryProgress);
+  
+      // Обрабатываем ответы
       let correctAnswersDelta = 0;
       let mistakesDelta = 0;
       const detailedResults = [];
+  
       answers.forEach(answer => {
-        const alreadyAnswered = categoryProgress.answeredQuestions.find(
-          q => q.questionId === answer.questionId
-        );
-        if (alreadyAnswered) {
-          console.log(`⚠️ Вопрос ${answer.questionId} уже был отвечен`);
-          return;
-        }
         const question = categoryQuestions.find(q => q._id.toString() === answer.questionId);
         if (!question) {
+          console.warn(`❌ Вопрос не найден по ID: ${answer.questionId}`);
           detailedResults.push({
             questionId: answer.questionId,
             selectedOption: answer.selectedOption,
@@ -205,8 +223,10 @@ class TicketService {
           });
           return;
         }
+  
         const correctOption = question.options.find(opt => opt.isCorrect);
         const isCorrect = correctOption && answer.selectedOption === correctOption.text;
+  
         if (isCorrect) {
           correctAnswersDelta++;
         } else {
@@ -221,11 +241,13 @@ class TicketService {
             videoUrl: question.videoUrl || null
           });
         }
+  
         detailedResults.push({
           questionId: answer.questionId,
           selectedOption: answer.selectedOption,
           isCorrect
         });
+  
         categoryProgress.answeredQuestions.push({
           questionId: answer.questionId,
           selectedOption: answer.selectedOption,
@@ -234,14 +256,29 @@ class TicketService {
           imageUrl: question.imageUrl || null,
           videoUrl: question.videoUrl || null
         });
+  
+        console.log(`📘 Вопрос ${question._id}: ответ "${answer.selectedOption}", правильный: "${correctOption?.text}", результат: ${isCorrect}, hint: "${question.hint || 'нет'}", imageUrl: "${question.imageUrl || 'нет'}", videoUrl: "${question.videoUrl || 'нет'}"`);
       });
-      categoryProgress.correctAnswers += correctAnswersDelta;
-      categoryProgress.mistakes += mistakesDelta;
+  
+      // Обновляем статистику прогресса
+      categoryProgress.correctAnswers = correctAnswersDelta;
+      categoryProgress.mistakes = mistakesDelta;
+  
+      // Пересчитываем общее количество ошибок пользователя
       user.stats.mistakes = user.ticketsProgress.reduce((acc, tp) => acc + tp.mistakes, 0) +
                            user.categoriesProgress.reduce((acc, cp) => acc + cp.mistakes, 0);
+  
       await user.save();
+      console.log('✅ Пользователь обновлен:', {
+        totalMistakes: user.stats.mistakes,
+        categoryCorrectAnswers: categoryProgress.correctAnswers,
+        categoryMistakes: categoryProgress.mistakes
+      });
+  
+      // Формируем результат
       const successRate = (categoryProgress.correctAnswers / categoryProgress.totalQuestions) * 100;
-      return {
+  
+      const result = {
         category,
         totalQuestions: categoryProgress.totalQuestions,
         correctAnswers: categoryProgress.correctAnswers,
@@ -249,7 +286,11 @@ class TicketService {
         successRate,
         answers: detailedResults
       };
+  
+      console.log('🏁 Финальный результат отправки категории:', result);
+      return result;
     } catch (error) {
+      console.error('💥 Ошибка при отправке ответов категории:', error.message);
       throw new Error(`Ошибка при отправке ответов по категории: ${error.message}`);
     }
   }

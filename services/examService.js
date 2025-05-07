@@ -579,6 +579,75 @@ class ExamService {
       throw new Error(`Ошибка при получении результатов: ${error.message}`);
     }
   }
+ 
+  async getMarathonResults(examId) {
+    try {
+      const marathonExam = await MarathonExam.findById(examId);
+      if (!marathonExam) {
+        throw new ApiError(404, 'Марафонский экзамен не найден');
+      }
+
+      // Получаем все билеты для поиска вопросов
+      const tickets = await Ticket.find().lean();
+      if (!tickets.length) {
+        throw new ApiError(404, 'Билеты не найдены');
+      }
+
+      // Формируем подробные данные о вопросах
+      const questionsWithDetails = marathonExam.questions.map(q => {
+        const ticket = tickets.find(t => t.questions.some(tq => tq._id.toString() === q.questionId._id.toString()));
+        const ticketQuestion = ticket?.questions.find(tq => tq._id.toString() === q.questionId._id.toString());
+        return {
+          questionId: {
+            _id: q.questionId._id,
+            text: ticketQuestion?.text || q.questionId.text || 'Вопрос не найден',
+            options: (ticketQuestion?.options || q.questionId.options || []).map(opt => ({
+              text: opt.text
+            })),
+            hint: ticketQuestion?.hint || q.questionId.hint || null,
+            imageUrl: ticketQuestion?.imageUrl || q.questionId.imageUrl || null,
+            videoUrl: ticketQuestion?.videoUrl || null,
+            category: ticketQuestion?.category || q.questionId.category || null,
+            questionNumber: ticketQuestion?.questionNumber || q.questionId.questionNumber || null
+          },
+          userAnswer: q.userAnswer,
+          isCorrect: q.isCorrect
+        };
+      });
+
+      // Вычисляем статистику
+      const totalQuestions = marathonExam.questions.length;
+      const correctAnswers = marathonExam.questions.filter(q => q.isCorrect).length;
+      const timeSpent = marathonExam.startTime
+        ? marathonExam.completedAt
+          ? Math.floor((marathonExam.completedAt.getTime() - marathonExam.startTime.getTime()) / 1000)
+          : Math.floor((Date.now() - marathonExam.startTime.getTime()) / 1000)
+        : 0;
+
+      return {
+        exam: {
+          ...marathonExam.toObject(),
+          questions: questionsWithDetails,
+          answeredQuestions: marathonExam.answeredQuestions,
+          mistakesDetails: marathonExam.mistakesDetails
+        },
+        statistics: {
+          totalQuestions,
+          correctAnswers,
+          mistakes: marathonExam.mistakes,
+          timeSpent,
+          status: marathonExam.status,
+          completedAt: marathonExam.completedAt
+        }
+      };
+    } catch (error) {
+      console.error(`Ошибка в getMarathonResults (examId: ${examId}):`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при получении результатов марафона: ${error.message}`);
+    }
+  }
   async generateShareTemplate(examId, isPremium) {
     try {
       const { exam, statistics } = await this.getExamResults(examId);

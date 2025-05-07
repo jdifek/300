@@ -190,6 +190,7 @@ router.post('/marathon/:examId/answer',
   validateAnswer,
   examController.submitMarathonAnswer
 );
+
 /**
  * @swagger
  * /api/exam/marathon/progress:
@@ -266,6 +267,198 @@ router.get('/marathon/progress',
   isAuthenticated,
   examController.getMarathonProgress
 );
+
+/**
+ * @swagger
+ * /api/exam/marathon/{examId}/results:
+ *   get:
+ *     summary: Получить результаты марафонского экзамена
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: examId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID марафонского экзамена
+ *     responses:
+ *       200:
+ *         description: Результаты марафонского экзамена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 exam:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: ID марафонского экзамена
+ *                     userId:
+ *                       type: string
+ *                       description: ID пользователя
+ *                     questions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: object
+ *                             description: Данные вопроса
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                                 description: ID вопроса
+ *                               text:
+ *                                 type: string
+ *                                 description: Текст вопроса
+ *                               imageUrl:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: URL изображения
+ *                               options:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *                                   properties:
+ *                                     text:
+ *                                       type: string
+ *                                       description: Текст варианта ответа
+ *                               hint:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: Подсказка
+ *                               videoUrl:
+ *                                 type: string
+ *                                 nullable: true
+ *                                 description: URL видео
+ *                               category:
+ *                                 type: string
+ *                                 description: Категория вопроса
+ *                               questionNumber:
+ *                                 type: integer
+ *                                 description: Номер вопроса
+ *                           userAnswer:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: Ответ пользователя
+ *                           isCorrect:
+ *                             type: boolean
+ *                             nullable: true
+ *                             description: Правильность ответа
+ *                     mistakes:
+ *                       type: integer
+ *                       description: Количество ошибок
+ *                     status:
+ *                       type: string
+ *                       enum: ['in_progress', 'completed']
+ *                       description: Статус марафона
+ *                     startTime:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Время начала марафона
+ *                     completedQuestions:
+ *                       type: integer
+ *                       description: Количество отвеченных вопросов
+ *                     completedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Время завершения марафона
+ *                     answeredQuestions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: string
+ *                             description: ID вопроса
+ *                           selectedOption:
+ *                             type: string
+ *                             description: Выбранный пользователем ответ
+ *                           isCorrect:
+ *                             type: boolean
+ *                             description: Правильность ответа
+ *                           hint:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Подсказка
+ *                           imageUrl:
+ *                             type: string
+ *                             nullable: true
+ *                             description: URL изображения
+ *                           videoUrl:
+ *                             type: string
+ *                             nullable: true
+ *                             description: URL видео
+ *                     mistakesDetails:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           questionId:
+ *                             type: string
+ *                             description: ID вопроса
+ *                           questionText:
+ *                             type: string
+ *                             description: Текст вопроса
+ *                           selectedOption:
+ *                             type: string
+ *                             description: Выбранный пользователем ответ
+ *                           correctOption:
+ *                             type: string
+ *                             description: Правильный ответ
+ *                           hint:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Подсказка
+ *                           imageUrl:
+ *                             type: string
+ *                             nullable: true
+ *                             description: URL изображения
+ *                           videoUrl:
+ *                             type: string
+ *                             nullable: true
+ *                             description: URL видео
+ *                 statistics:
+ *                   type: object
+ *                   properties:
+ *                     totalQuestions:
+ *                       type: integer
+ *                       description: Общее количество вопросов
+ *                     correctAnswers:
+ *                       type: integer
+ *                       description: Количество правильных ответов
+ *                     mistakes:
+ *                       type: integer
+ *                       description: Количество ошибок
+ *                     timeSpent:
+ *                       type: integer
+ *                       description: Время, затраченное на марафон (в секундах)
+ *                     status:
+ *                       type: string
+ *                       enum: ['in_progress', 'completed']
+ *                       description: Статус марафона
+ *                     completedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Время завершения марафона
+ *       404:
+ *         description: Экзамен не найден
+ *       401:
+ *         description: Не авторизован
+ */
+router.get('/marathon/:examId/results',
+  isAuthenticated,
+  validateExamId,
+  examController.getMarathonResults
+);
+
+// ... остальные маршруты остаются без изменений ...
 
 /**
  * @swagger
@@ -860,6 +1053,7 @@ router.get('/:examId/share',
   validateExamId,
   examController.getShareTemplate
 );
+
 /**
  * @swagger
  * /api/exam/{examId}/results:
