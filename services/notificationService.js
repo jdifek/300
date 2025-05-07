@@ -6,9 +6,10 @@ class notificationService {
   }
 
   async createNotification(data) {
-    const { title, description } = data;
-    return await Notification.create({ title, description });
+    const { title, description, videoUrl } = data;
+    return await Notification.create({ title, description, videoUrl });
   }
+  
 }
 
 module.exports = new notificationService(); 

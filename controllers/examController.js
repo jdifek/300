@@ -2,8 +2,94 @@ const examService = require('../services/examService');
 const ApiError = require('../exceptions/api-error');
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
+const MarathonExam = require('../models/MarathonExam');
+
 
 class ExamController {
+  async getAllMarathonStatistics(req, res, next) {
+    try {
+      const userId = req.user.id;
+      if (!userId) {
+        throw new ApiError(400, 'ID пользователя обязателен');
+      }
+  
+      // Находим все марафонские экзамены для пользователя
+      const marathonExams = await MarathonExam.find({ userId }).lean();
+      if (!marathonExams.length) {
+        return res.json({
+          status: 'not_started',
+          totalQuestions: 800,
+          answeredQuestions: 0,
+          correctAnswers: 0,
+          mistakes: 0,
+          questions: [],
+          mistakesDetails: [],
+          totalTimeSpent: 0,
+          formattedTotalTimeSpent: '0 мин 0 сек'
+        });
+      }
+  
+      // Агрегируем данные по всем вопросам
+      const allQuestions = marathonExams.flatMap(exam => exam.questions);
+      const questionsWithDetails = allQuestions.map(q => {
+        return {
+          questionId: q.questionId._id,
+          text: q.questionId.text || 'Вопрос не найден',
+          options: q.questionId.options,
+          hint: q.questionId.hint || null,
+          imageUrl: q.questionId.imageUrl || null,
+          videoUrl: q.questionId.videoUrl || null,
+          category: q.questionId.category || null,
+          questionNumber: q.questionId.questionNumber || null,
+          userAnswer: q.userAnswer,
+          isCorrect: q.isCorrect
+        };
+      });
+  
+      // Вычисляем статистику
+      const answeredQuestions = allQuestions.filter(q => q.userAnswer !== null).length;
+      const correctAnswers = allQuestions.filter(q => q.isCorrect === true).length;
+      const mistakes = allQuestions.filter(q => q.isCorrect === false).length;
+  
+      // Суммируем время, затраченное на все марафоны
+      const totalTimeSpent = marathonExams.reduce((total, exam) => {
+        const startTime = exam.startTime.getTime();
+        const endTime = exam.completedAt ? exam.completedAt.getTime() : Date.now();
+        return total + Math.floor((endTime - startTime) / 1000);
+      }, 0);
+  
+      // Форматируем общее время
+      const minutes = Math.floor(totalTimeSpent / 60);
+      const seconds = totalTimeSpent % 60;
+      const formattedTotalTimeSpent = `${minutes} мин ${seconds} сек`;
+  
+      // Собираем подробности об ошибках
+      const mistakesDetails = allQuestions
+        .filter(q => q.isCorrect === false)
+        .map(q => ({
+          questionId: q.questionId._id,
+          questionText: q.questionId.text || 'Вопрос не найден',
+          selectedOption: q.questionId.options[q.userAnswer]?.text || 'Неизвестный ответ',
+          correctOption: q.questionId.options.find(opt => opt.text === q.questionId.options.find(o => o.isCorrect)?.text)?.text || 'Неизвестный ответ',
+          hint: q.questionId.hint || null,
+          imageUrl: q.questionId.imageUrl || null
+        }));
+  
+      res.json({
+        status: marathonExams.some(exam => exam.status === 'in_progress') ? 'in_progress' : 'completed',
+        totalQuestions: 800,
+        answeredQuestions,
+        correctAnswers,
+        mistakes,
+        questions: questionsWithDetails,
+        mistakesDetails,
+        totalTimeSpent,
+        formattedTotalTimeSpent
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
   async get5question(req, res) {
     try {
       const category = req.query.category; // Получаем категорию из параметров запроса
@@ -78,14 +164,90 @@ class ExamController {
 
   async getMarathonProgress(req, res, next) {
     try {
-      const { userId } = req.user; // Предполагаем, что userId доступен через middleware
+      const userId = req.user.id;
       const progress = await examService.getMarathonProgress(userId);
       res.json(progress);
     } catch (error) {
       next(error);
     }
   }
-
+  async getCurrentMarathonAllProgress(req, res, next) {
+    try {
+      const userId = req.user.id;
+      if (!userId) {
+        throw new ApiError(400, 'ID пользователя обязателен');
+      }
+  
+      // Находим текущий марафонский экзамен со статусом 'in_progress'
+      const marathonExam = await MarathonExam.findOne({ userId, status: 'in_progress' });
+      if (!marathonExam) {
+        return res.json({
+          status: 'not_started',
+          totalQuestions: 800, // Общее количество вопросов в марафоне
+          answeredQuestions: 0,
+          correctAnswers: 0,
+          mistakes: 0,
+          questions: [],
+          mistakesDetails: [],
+          timeSpent: 0,
+          formattedTimeSpent: '0 мин 0 сек'
+        });
+      }
+  
+      // Получаем все билеты для извлечения полных данных о вопросах
+      const tickets = await Ticket.find().lean();
+      if (!tickets.length) {
+        throw new ApiError(404, 'Билеты не найдены');
+      }
+  
+      // Формируем детализированные данные о вопросах
+      const questionsWithDetails = marathonExam.questions.map(q => {
+        const ticket = tickets.find(t => t.questions.some(tq => tq._id.toString() === q.questionId.toString()));
+        const ticketQuestion = ticket?.questions.find(tq => tq._id.toString() === q.questionId.toString());
+        return {
+          questionId: q.questionId,
+          text: ticketQuestion?.text || 'Вопрос не найден',
+          options: (ticketQuestion?.options || []).map(opt => ({ text: opt.text })),
+          hint: ticketQuestion?.hint || null,
+          imageUrl: ticketQuestion?.imageUrl || null,
+          videoUrl: ticketQuestion?.videoUrl || null,
+          category: ticketQuestion?.category || null,
+          questionNumber: ticketQuestion?.questionNumber || null,
+          userAnswer: q.userAnswer,
+          isCorrect: q.isCorrect
+        };
+      });
+  
+      // Вычисляем статистику
+      const totalQuestions = 800; // Фиксированное значение общего количества вопросов
+      const answeredQuestions = marathonExam.completedQuestions || 0;
+      const correctAnswers = marathonExam.questions.filter(q => q.isCorrect === true).length;
+      const timeSpent = marathonExam.startTime
+        ? marathonExam.completedAt
+          ? Math.floor((marathonExam.completedAt.getTime() - marathonExam.startTime.getTime()) / 1000)
+          : Math.floor((Date.now() - marathonExam.startTime.getTime()) / 1000)
+        : 0;
+  
+      // Форматируем время
+      const minutes = Math.floor(timeSpent / 60);
+      const seconds = timeSpent % 60;
+      const formattedTimeSpent = `${minutes} мин ${seconds} сек`;
+  
+      res.json({
+        status: marathonExam.status,
+        totalQuestions,
+        answeredQuestions,
+        correctAnswers,
+        mistakes: marathonExam.mistakes || 0,
+        questions: questionsWithDetails,
+        mistakesDetails: marathonExam.mistakesDetails || [],
+        timeSpent,
+        formattedTimeSpent
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
   async getMarathonResults(req, res, next) {
     try {
       const { examId } = req.params;

@@ -1,4 +1,5 @@
 const Exam = require('../models/Exam');
+const TempQuestion = require('../models/TempQuestion');
 const Ticket = require('../models/Ticket');
 const MarathonExam = require('../models/MarathonExam');
 const ExtraQuestion = require('../models/ExtraQuestion');
@@ -32,12 +33,10 @@ class ExamService {
         throw new Error('Марафонский экзамен не найден');
       }
   
-      // Проверяем, есть ли вопросы в экзамене
       if (!marathonExam.questions || marathonExam.questions.length === 0) {
         throw new Error('Вопросы марафона не найдены');
       }
   
-      // Загружаем вопрос из билета
       const ticket = await Ticket.findOne({
         'questions._id': marathonExam.questions[questionIndex].questionId._id
       });
@@ -52,7 +51,6 @@ class ExamService {
         throw new Error('Вопрос не найден');
       }
   
-      // Проверяем ответ
       const correctAnswer = questionData.options.findIndex(opt => opt.isCorrect);
       const selectedOptionText = questionData.options[userAnswer]?.text || 'Неизвестно';
       const correctOptionText = questionData.options[correctAnswer]?.text || 'Неизвестно';
@@ -61,7 +59,6 @@ class ExamService {
       question.userAnswer = userAnswer;
       question.isCorrect = userAnswer === correctAnswer;
   
-      // Обновляем answeredQuestions
       marathonExam.answeredQuestions.push({
         questionId: question.questionId._id.toString(),
         selectedOption: selectedOptionText,
@@ -80,15 +77,18 @@ class ExamService {
           hint: questionData.hint || null,
           imageUrl: questionData.imageUrl || null
         });
+  
+        if (marathonExam.mistakes < 3) {
+          await this.addExtraQuestionsToMarathon(marathonExam, questionData.category);
+        }
       }
   
       marathonExam.completedQuestions += 1;
   
-      // Проверяем, завершён ли марафон
-      const totalQuestions = marathonExam.questions.length;
+      const totalQuestions = marathonExam.questions.length + marathonExam.extraQuestions.length;
       if (marathonExam.completedQuestions >= totalQuestions) {
         marathonExam.status = 'completed';
-        marathonExam.completedAt = new Date(); // Устанавливаем время завершения
+        marathonExam.completedAt = new Date();
       }
   
       await marathonExam.save();
@@ -459,34 +459,64 @@ class ExamService {
 
   async addExtraQuestions(exam, category) {
     try {
-      // Добавляем вопросы только если ошибок меньше 3 (при 3-й ошибке экзамен уже завершается)
       if (exam.mistakes >= 3) {
-        return; // Экзамен завершён, дополнительные вопросы не добавляем
+        return;
       }
   
-      // Добавляем 5 новых вопросов за каждую ошибку
-      let extraQuestions = await ExtraQuestion.find({ category }).limit(5);
-      if (extraQuestions.length < 5) {
-        const additionalQuestions = await ExtraQuestion.aggregate([
-          { $match: { category: { $ne: category } } },
-          { $sample: { size: 5 - extraQuestions.length } }
-        ]);
-        extraQuestions = extraQuestions.concat(additionalQuestions);
+      // Получаем все вопросы из билетов
+      const allTickets = await Ticket.find();
+      let availableQuestions = [];
+  
+      // Собираем все вопросы из билетов, исключая уже использованные
+      for (const ticket of allTickets) {
+        const newQuestions = ticket.questions.filter(q => 
+          q.category === category &&
+          !exam.questions.some(eq => eq.questionId.text === q.text) &&
+          !exam.extraQuestions.some(eq => eq.questionId.toString() === q.text)
+        );
+        availableQuestions = availableQuestions.concat(newQuestions);
       }
   
-      // Добавляем новые вопросы в массив extraQuestions
-      exam.extraQuestions.push(...extraQuestions.map((q) => ({
-        questionId: q._id,
-        userAnswer: null,
-        isCorrect: null
+      console.log(`Найдено доступных вопросов по категории "${category}": ${availableQuestions.length}`);
+  
+      // Выбираем 5 уникальных вопросов
+      const selectedQuestions = [];
+      const seenTexts = new Set();
+      for (const q of availableQuestions) {
+        if (!seenTexts.has(q.text) && selectedQuestions.length < 5) {
+          seenTexts.add(q.text);
+          selectedQuestions.push(q);
+        }
+      }
+  
+      if (selectedQuestions.length === 0) {
+        console.log('Не удалось найти дополнительные вопросы в билетах.');
+        return;
+      }
+  
+      // Сохраняем вопросы как временные документы в коллекции TempQuestion
+      const tempQuestions = await TempQuestion.insertMany(selectedQuestions.map(q => ({
+        text: q.text,
+        options: q.options,
+        category: q.category,
+        hint: q.hint || null,
+        imageUrl: q.imageUrl || null
       })));
   
-      // Добавляем 5 минут дополнительного времени за каждую ошибку
-      exam.extraTime = (exam.extraTime || 0) + 5 * 60 * 1000; // +5 минут за каждую ошибку
+      // Добавляем ссылки на временные вопросы в extraQuestions
+      const newExtraQuestions = tempQuestions.map((q, index) => ({
+        questionId: q._id, // Сохраняем только ObjectId
+        userAnswer: null,
+        isCorrect: null
+      }));
+      exam.extraQuestions.push(...newExtraQuestions);
   
-      // Логируем для отладки
-      console.log(`Добавлено 5 дополнительных вопросов после ${exam.mistakes}-й ошибки. Всего дополнительных вопросов: ${exam.extraQuestions.length}`);
+      exam.extraTime = (exam.extraTime || 0) + 5 * 60 * 1000;
+  
+      await exam.save();
+      console.log(`После сохранения: Добавлено ${newExtraQuestions.length} вопросов. Всего в extraQuestions: ${exam.extraQuestions.length}`);
     } catch (error) {
+      console.error(`Ошибка при добавлении дополнительных вопросов: ${error.message}`);
       throw new Error(`Ошибка при добавлении дополнительных вопросов: ${error.message}`);
     }
   }

@@ -1,8 +1,9 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
-const NotifacationShema = new mongoose.Schema({
-  title: {type: String, required: true},
-  description: { type: String, required: true }
-})
+const NotificationSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  videoUrl: { type: String }, // необязательное поле со ссылкой на видео
+}, { timestamps: true }); // добавит createdAt и updatedAt автоматически
 
-module.exports = mongoose.model('Notification', NotifacationShema);
+module.exports = mongoose.model('Notification', NotificationSchema);

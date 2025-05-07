@@ -270,6 +270,124 @@ router.get('/marathon/progress',
 
 /**
  * @swagger
+ * /api/exam/marathon/all-statistics:
+ *   get:
+ *     summary: Получить статистику по всем 800 вопросам марафона
+ *     description: Возвращает агрегированную статистику по всем марафонам пользователя, включая ответы и ошибки за все время.
+ *     tags: [Exam]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Статистика по всем вопросам марафона
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   enum: ['not_started', 'in_progress', 'completed']
+ *                   description: Общий статус марафона (in_progress, если есть активный, иначе completed)
+ *                 totalQuestions:
+ *                   type: integer
+ *                   description: Общее количество вопросов (фиксировано 800)
+ *                 answeredQuestions:
+ *                   type: integer
+ *                   description: Общее количество отвеченных вопросов
+ *                 correctAnswers:
+ *                   type: integer
+ *                   description: Общее количество правильных ответов
+ *                 mistakes:
+ *                   type: integer
+ *                   description: Общее количество ошибок
+ *                 questions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       text:
+ *                         type: string
+ *                         description: Текст вопроса
+ *                       options:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             text:
+ *                               type: string
+ *                               description: Текст варианта ответа
+ *                       hint:
+ *                         type: string
+ *                         nullable: true
+ *                         description: Подсказка
+ *                       imageUrl:
+ *                         type: string
+ *                         nullable: true
+ *                         description: URL изображения
+ *                       videoUrl:
+ *                         type: string
+ *                         nullable: true
+ *                         description: URL видео
+ *                       category:
+ *                         type: string
+ *                         description: Категория вопроса
+ *                       questionNumber:
+ *                         type: integer
+ *                         description: Номер вопроса
+ *                       userAnswer:
+ *                         type: integer
+ *                         nullable: true
+ *                         description: Ответ пользователя
+ *                       isCorrect:
+ *                         type: boolean
+ *                         nullable: true
+ *                         description: Правильность ответа
+ *                 mistakesDetails:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       questionId:
+ *                         type: string
+ *                         description: ID вопроса
+ *                       questionText:
+ *                         type: string
+ *                         description: Текст вопроса
+ *                       selectedOption:
+ *                         type: string
+ *                         description: Выбранный пользователем ответ
+ *                       correctOption:
+ *                         type: string
+ *                         description: Правильный ответ
+ *                       hint:
+ *                         type: string
+ *                         nullable: true
+ *                         description: Подсказка
+ *                       imageUrl:
+ *                         type: string
+ *                         nullable: true
+ *                         description: URL изображения
+ *                 totalTimeSpent:
+ *                   type: integer
+ *                   description: Общее время, затраченное на марафон (в секундах)
+ *                 formattedTotalTimeSpent:
+ *                   type: string
+ *                   description: Форматированное общее время (например, "15 мин 30 сек")
+ *       401:
+ *         description: Не авторизован
+ */
+router.get('/marathon/all-statistics',
+  isAuthenticated,
+  examController.getAllMarathonStatistics
+);
+
+
+/**
+ * @swagger
  * /api/exam/marathon/{examId}/results:
  *   get:
  *     summary: Получить результаты марафонского экзамена
