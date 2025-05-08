@@ -3,6 +3,34 @@ const User = require('../models/User');
 const SubscriptionHistory = require('../models/SubscriptionHistory');
 const jwt = require('jsonwebtoken');
 
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHANNEL_USERNAME = '@your_channel_username'; 
+
+exports.checkChannelSubscription = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const telegramId = user.telegramId;
+    if (!telegramId) return res.status(400).json({ message: 'User has no telegramId' });
+
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getChatMember?chat_id=${TELEGRAM_CHANNEL_USERNAME}&user_id=${telegramId}`;
+    const response = await axios.get(url);
+    const status = response.data.result.status;
+
+    const isSubscribed = status !== 'left';
+    if (isSubscribed && !user.subscribedToChannel) {
+      user.subscribedToChannel = true;
+      await user.save();
+    }
+
+    res.json({ subscribed: isSubscribed });
+  } catch (error) {
+    console.error('Subscription check failed:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Subscription check failed' });
+  }
+};
 const generateTokens = (userId) => {
   const accessToken = jwt.sign({ id: userId }, process.env.JWT_ACCESS_SECRET, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });

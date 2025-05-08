@@ -1,6 +1,7 @@
+// routes/notifications.js
 const express = require('express');
 const router = express.Router();
-const { isAuthenticated } = require('../middleware/auth');
+const { isAuthenticated, isAdmin } = require('../middleware/auth');
 const notificationController = require('../controllers/notificationController');
 
 /**
@@ -36,24 +37,22 @@ const notificationController = require('../controllers/notificationController');
  *           type: string
  *           description: URL видео, связанного с уведомлением (необязательное поле)
  *           example: https://example.com/video.mp4
+ *         readBy:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Список ID пользователей, пометивших уведомление как прочитанное
+ *           example: ["507f1f77bcf86cd799439012"]
  *         createdAt:
  *           type: string
  *           format: date-time
- *           description: Дата и время создания уведомления (автоматически добавляется)
+ *           description: Дата и время создания уведомления
  *           example: 2025-05-07T10:00:00.000Z
  *         updatedAt:
  *           type: string
  *           format: date-time
- *           description: Дата и время последнего обновления уведомления (автоматически добавляется)
+ *           description: Дата и время последнего обновления уведомления
  *           example: 2025-05-07T10:00:00.000Z
- *       example:
- *         _id: 507f1f77bcf86cd799439011
- *         title: Новое уведомление
- *         description: Это важное уведомление для пользователей
- *         videoUrl: https://example.com/video.mp4
- *         createdAt: 2025-05-07T10:00:00.000Z
- *         updatedAt: 2025-05-07T10:00:00.000Z
- * 
  *   securitySchemes:
  *     bearerAuth:
  *       type: http
@@ -65,8 +64,8 @@ const notificationController = require('../controllers/notificationController');
  * @swagger
  * /api/notifications:
  *   get:
- *     summary: Получить список всех уведомлений
- *     description: Возвращает массив всех уведомлений, доступных в системе. Требуется авторизация.
+ *     summary: Получить список непрочитанных уведомлений
+ *     description: Возвращает массив уведомлений, которые текущий пользователь еще не пометил как прочитанные. Требуется авторизация.
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
@@ -79,18 +78,6 @@ const notificationController = require('../controllers/notificationController');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Notification'
- *             example:
- *               - _id: 507f1f77bcf86cd799439011
- *                 title: Новое уведомление
- *                 description: Это важное уведомление для пользователей
- *                 videoUrl: https://example.com/video.mp4
- *                 createdAt: 2025-05-07T10:00:00.000Z
- *                 updatedAt: 2025-05-07T10:00:00.000Z
- *               - _id: 507f1f77bcf86cd799439012
- *                 title: Обновление системы
- *                 description: Система обновлена до версии 2.0
- *                 createdAt: 2025-05-07T09:00:00.000Z
- *                 updatedAt: 2025-05-07T09:00:00.000Z
  *       401:
  *         description: Пользователь не авторизован
  *         content:
@@ -102,7 +89,7 @@ const notificationController = require('../controllers/notificationController');
  *                   type: string
  *                   example: Unauthorized
  *       500:
- *         description: Внутренняя ошибка сервера при получении уведомлений
+ *         description: Внутренняя ошибка сервера
  *         content:
  *           application/json:
  *             schema:
@@ -118,10 +105,10 @@ const notificationController = require('../controllers/notificationController');
  * /api/notifications:
  *   post:
  *     summary: Создать новое уведомление
- *     description: Создаёт новое уведомление с указанным заголовком, описанием и опциональным URL видео. Требуется авторизация.
+ *     description: Создаёт новое уведомление с указанным заголовком, описанием и опциональным URL видео. Требуется авторизация и роль администратора.
  *     tags: [Notifications]
  *     security:
- *       - bearerAuth: []
+ *       - bearerAuth:
  *     requestBody:
  *       required: true
  *       content:
@@ -144,26 +131,15 @@ const notificationController = require('../controllers/notificationController');
  *                 type: string
  *                 description: URL видео, связанного с уведомлением (необязательное поле)
  *                 example: https://example.com/video.mp4
- *           example:
- *             title: Новое уведомление
- *             description: Это важное уведомление для пользователей
- *             videoUrl: https://example.com/video.mp4
  *     responses:
- *       200:
+ *       201:
  *         description: Уведомление успешно создано
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Notification'
- *             example:
- *               _id: 507f1f77bcf86cd799439011
- *               title: Новое уведомление
- *               description: Это важное уведомление для пользователей
- *               videoUrl: https://example.com/video.mp4
- *               createdAt: 2025-05-07T10:00:00.000Z
- *               updatedAt: 2025-05-07T10:00:00.000Z
  *       400:
- *         description: Неверный формат данных (например, отсутствуют обязательные поля)
+ *         description: Неверный формат данных
  *         content:
  *           application/json:
  *             schema:
@@ -182,8 +158,18 @@ const notificationController = require('../controllers/notificationController');
  *                 message:
  *                   type: string
  *                   example: Unauthorized
+ *       403:
+ *         description: Требуется роль администратора
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Доступ запрещен: требуется роль администратора
  *       500:
- *         description: Внутренняя ошибка сервера при создании уведомления
+ *         description: Внутренняя ошибка сервера
  *         content:
  *           application/json:
  *             schema:
@@ -193,8 +179,79 @@ const notificationController = require('../controllers/notificationController');
  *                   type: string
  *                   example: Internal server error
  */
-router.post('/', isAuthenticated, notificationController.createNotification);
+
+/**
+ * @swagger
+ * /api/notifications/{id}/read:
+ *   post:
+ *     summary: Пометить уведомление как прочитанное
+ *     description: Помечает уведомление как прочитанное для текущего пользователя. Требуется авторизация.
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID уведомления
+ *         example: 507f1f77bcf86cd799439011
+ *     responses:
+ *       200:
+ *         description: Уведомление отмечено как прочитанное
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Уведомление отмечено как прочитанное
+ *       400:
+ *         description: Неверный формат ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Неверный формат ID
+ *       401:
+ *         description: Пользователь не авторизован
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Unauthorized
+ *       404:
+ *         description: Уведомление не найдено
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Уведомление не найдено
+ *       500:
+ *         description: Внутренняя ошибка сервера
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
 
 router.get('/', isAuthenticated, notificationController.getNotification);
+router.post('/', isAuthenticated, notificationController.createNotification);
+router.post('/:id/read', isAuthenticated, notificationController.markAsRead);
 
 module.exports = router;

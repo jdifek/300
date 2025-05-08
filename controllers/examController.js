@@ -4,16 +4,45 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const MarathonExam = require('../models/MarathonExam');
 
-
 class ExamController {
+  async getUnansweredQuestions(req, res, next) {
+    try {
+      const { examId } = req.params;
+      const unansweredQuestions = await examService.getUnansweredQuestions(examId);
+      res.json(unansweredQuestions);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async submitUnansweredQuestionAnswer(req, res, next) {
+    try {
+      const { examId } = req.params;
+      const { questionIndex, userAnswer } = req.body;
+      const marathonExam = await examService.processUnansweredQuestionAnswer(examId, questionIndex, userAnswer);
+      res.json(marathonExam);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUnansweredResults(req, res, next) {
+    try {
+      const { examId } = req.params;
+      const results = await examService.getUnansweredResults(examId);
+      res.json(results);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getAllMarathonStatistics(req, res, next) {
     try {
       const userId = req.user.id;
       if (!userId) {
         throw new ApiError(400, 'ID пользователя обязателен');
       }
-  
-      // Находим все марафонские экзамены для пользователя
+
       const marathonExams = await MarathonExam.find({ userId }).lean();
       if (!marathonExams.length) {
         return res.json({
@@ -28,8 +57,7 @@ class ExamController {
           formattedTotalTimeSpent: '0 мин 0 сек'
         });
       }
-  
-      // Агрегируем данные по всем вопросам
+
       const allQuestions = marathonExams.flatMap(exam => exam.questions);
       const questionsWithDetails = allQuestions.map(q => {
         return {
@@ -45,25 +73,21 @@ class ExamController {
           isCorrect: q.isCorrect
         };
       });
-  
-      // Вычисляем статистику
+
       const answeredQuestions = allQuestions.filter(q => q.userAnswer !== null).length;
       const correctAnswers = allQuestions.filter(q => q.isCorrect === true).length;
       const mistakes = allQuestions.filter(q => q.isCorrect === false).length;
-  
-      // Суммируем время, затраченное на все марафоны
+
       const totalTimeSpent = marathonExams.reduce((total, exam) => {
         const startTime = exam.startTime.getTime();
         const endTime = exam.completedAt ? exam.completedAt.getTime() : Date.now();
         return total + Math.floor((endTime - startTime) / 1000);
       }, 0);
-  
-      // Форматируем общее время
+
       const minutes = Math.floor(totalTimeSpent / 60);
       const seconds = totalTimeSpent % 60;
       const formattedTotalTimeSpent = `${minutes} мин ${seconds} сек`;
-  
-      // Собираем подробности об ошибках
+
       const mistakesDetails = allQuestions
         .filter(q => q.isCorrect === false)
         .map(q => ({
@@ -74,7 +98,7 @@ class ExamController {
           hint: q.questionId.hint || null,
           imageUrl: q.questionId.imageUrl || null
         }));
-  
+
       res.json({
         status: marathonExams.some(exam => exam.status === 'in_progress') ? 'in_progress' : 'completed',
         totalQuestions: 800,
@@ -90,21 +114,17 @@ class ExamController {
       next(error);
     }
   }
+
   async get5question(req, res) {
     try {
-      const category = req.query.category; // Получаем категорию из параметров запроса
-
-      // Находим билеты, которые соответствуют выбранной категории
+      const category = req.query.category;
       const tickets = await Ticket.find({ 'questions.category': category }).lean();
-
-      // Извлекаем 5 вопросов из найденных билетов
       const questions = tickets.flatMap(ticket =>
         ticket.questions
-          .filter(question => question.category === category) // Фильтруем по категории
-          .slice(0, 5) // Берем только первые 5 вопросов
-      ).slice(0, 5); // Если вопросов больше 5, берем только 5
-
-      res.json(questions); // Возвращаем вопросы
+          .filter(question => question.category === category)
+          .slice(0, 5)
+      ).slice(0, 5);
+      res.json(questions);
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
@@ -112,18 +132,13 @@ class ExamController {
 
   async getAllQuestionsByCategory(req, res) {
     try {
-      const category = req.query.category; // Получаем категорию из параметров запроса
-
-      // Находим билеты, которые соответствуют выбранной категории
+      const category = req.query.category;
       const tickets = await Ticket.find({ 'questions.category': category }).lean();
-
-      // Извлекаем все вопросы из найденных билетов
       const questions = tickets.flatMap(ticket =>
         ticket.questions
-          .filter(question => question.category === category) // Фильтруем по категории
+          .filter(question => question.category === category)
       );
-
-      res.json(questions); // Возвращаем все вопросы
+      res.json(questions);
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
@@ -171,19 +186,19 @@ class ExamController {
       next(error);
     }
   }
+
   async getCurrentMarathonAllProgress(req, res, next) {
     try {
       const userId = req.user.id;
       if (!userId) {
         throw new ApiError(400, 'ID пользователя обязателен');
       }
-  
-      // Находим текущий марафонский экзамен со статусом 'in_progress'
+
       const marathonExam = await MarathonExam.findOne({ userId, status: 'in_progress' });
       if (!marathonExam) {
         return res.json({
           status: 'not_started',
-          totalQuestions: 800, // Общее количество вопросов в марафоне
+          totalQuestions: 800,
           answeredQuestions: 0,
           correctAnswers: 0,
           mistakes: 0,
@@ -193,14 +208,12 @@ class ExamController {
           formattedTimeSpent: '0 мин 0 сек'
         });
       }
-  
-      // Получаем все билеты для извлечения полных данных о вопросах
+
       const tickets = await Ticket.find().lean();
       if (!tickets.length) {
         throw new ApiError(404, 'Билеты не найдены');
       }
-  
-      // Формируем детализированные данные о вопросах
+
       const questionsWithDetails = marathonExam.questions.map(q => {
         const ticket = tickets.find(t => t.questions.some(tq => tq._id.toString() === q.questionId.toString()));
         const ticketQuestion = ticket?.questions.find(tq => tq._id.toString() === q.questionId.toString());
@@ -217,9 +230,8 @@ class ExamController {
           isCorrect: q.isCorrect
         };
       });
-  
-      // Вычисляем статистику
-      const totalQuestions = 800; // Фиксированное значение общего количества вопросов
+
+      const totalQuestions = 800;
       const answeredQuestions = marathonExam.completedQuestions || 0;
       const correctAnswers = marathonExam.questions.filter(q => q.isCorrect === true).length;
       const timeSpent = marathonExam.startTime
@@ -227,12 +239,11 @@ class ExamController {
           ? Math.floor((marathonExam.completedAt.getTime() - marathonExam.startTime.getTime()) / 1000)
           : Math.floor((Date.now() - marathonExam.startTime.getTime()) / 1000)
         : 0;
-  
-      // Форматируем время
+
       const minutes = Math.floor(timeSpent / 60);
       const seconds = timeSpent % 60;
       const formattedTimeSpent = `${minutes} мин ${seconds} сек`;
-  
+
       res.json({
         status: marathonExam.status,
         totalQuestions,
@@ -248,6 +259,7 @@ class ExamController {
       next(error);
     }
   }
+
   async getMarathonResults(req, res, next) {
     try {
       const { examId } = req.params;
@@ -308,7 +320,7 @@ class ExamController {
   async getShareTemplate(req, res, next) {
     try {
       const { examId } = req.params;
-      const { isPremium } = req.user; // Предполагаем, что isPremium есть в объекте пользователя
+      const { isPremium } = req.user;
       const template = await examService.generateShareTemplate(examId, isPremium);
       res.json(template);
     } catch (error) {
@@ -326,49 +338,63 @@ class ExamController {
     }
   }
 
-  async getRandomQuestions(req, res) {
+  async getRandomQuestions(req, res, next) {
     try {
-      const category = req.query.category; // Получаем категорию из параметров запроса
-
-      // Находим билеты, которые соответствуют выбранной категории
+      const category = req.query.category;
+      const userId = req.user.id;
+      if (!userId) {
+        throw new ApiError(400, 'ID пользователя обязателен');
+      }
       const tickets = await Ticket.find({ 'questions.category': category }).lean();
-
-      // Извлекаем все вопросы из найденных билетов
       const allQuestions = tickets.flatMap(ticket =>
-        ticket.questions.filter(question => question.category === category) // Фильтруем по категории
+        ticket.questions
+          .filter(question => question.category === category)
+          .map(question => ({
+            ...question,
+            ticketNumber: ticket.number
+          }))
       );
-
-      // Перемешиваем вопросы и берем первые 5
       const randomQuestions = allQuestions.sort(() => 0.5 - Math.random()).slice(0, 5);
-
-      res.json(randomQuestions); // Возвращаем случайные вопросы
+      const sessionId = await examService.createRandomQuestionSession(userId, randomQuestions);
+      res.json({ sessionId, questions: randomQuestions });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      next(error);
+    }
+  }
+
+  async submitRandomQuestionAnswer(req, res, next) {
+    try {
+      const { sessionId, questionId, userAnswer } = req.body;
+      const userId = req.user.id;
+      if (!userId || !sessionId || !questionId || userAnswer === undefined) {
+        throw new ApiError(400, 'Необходимы userId, sessionId, questionId и userAnswer');
+      }
+      const result = await examService.processRandomQuestionAnswer(userId, sessionId, questionId, userAnswer);
+      res.json(result);
+    } catch (error) {
+      next(error);
     }
   }
 
   async getNewQuestions(req, res) {
     try {
-      const userId = req.user?.id; // Убедитесь, что userId доступен
+      const userId = req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: 'Пользователь не аутентифицирован' });
       }
-  
-      // Получаем все билеты
+
       const tickets = await Ticket.find().lean();
       if (!tickets.length) {
         return res.status(404).json({ message: 'Билеты не найдены' });
       }
-  
-      // Получаем прогресс пользователя
+
       const user = await User.findById(userId).lean();
       if (!user) {
         return res.status(404).json({ message: 'Пользователь не найден' });
       }
-  
+
       const completedTicketNumbers = user.ticketsProgress?.map(ticket => ticket.ticketNumber) || [];
-  
-      // Формируем новые вопросы
+
       const newQuestions = tickets.flatMap(ticket => {
         if (!completedTicketNumbers.includes(ticket.number)) {
           return ticket.questions.map(question => ({
@@ -384,8 +410,7 @@ class ExamController {
         }
         return [];
       });
-  
-      // Возвращаем пустой массив, если вопросов нет
+
       res.json(newQuestions.length ? newQuestions : []);
     } catch (error) {
       console.error('Ошибка в getNewQuestions:', error);

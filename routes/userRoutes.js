@@ -164,6 +164,30 @@ router.put('/subscription', isAuthenticated, userController.updateSubscription);
 
 /**
  * @swagger
+ * /api/users/check-channel-subscription:
+ *   post:
+ *     summary: Проверка подписки пользователя на Telegram-канал
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Подписка проверена
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 subscribed:
+ *                   type: boolean
+ *       400: { description: "telegramId не найден" }
+ *       404: { description: "Пользователь не найден" }
+ *       500: { description: "Ошибка сервера" }
+ */
+router.post('/check-channel-subscription', isAuthenticated, userController.checkChannelSubscription);
+
+/**
+ * @swagger
  * /api/users/progress:
  *   get:
  *     summary: Получение прогресса пользователя

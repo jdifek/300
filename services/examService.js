@@ -3,62 +3,133 @@ const TempQuestion = require('../models/TempQuestion');
 const Ticket = require('../models/Ticket');
 const MarathonExam = require('../models/MarathonExam');
 const ExtraQuestion = require('../models/ExtraQuestion');
+const User = require('../models/User');
+const mongoose = require('mongoose');
 const ApiError = require('../exceptions/api-error');
 
-
 class ExamService {
-  // Получить все вопросы для марафона (без правильных ответов)
   async getMarathonQuestions() {
     try {
-      // Получаем все билеты с вопросами
       const tickets = await Ticket.find().lean();
-  
       if (!tickets.length) {
-        return []; // Нет билетов — возвращаем пустой массив
+        return [];
       }
-  
-      // Достаём все вопросы из каждого билета и объединяем в один массив
       const allQuestions = tickets.flatMap(ticket => ticket.questions || []);
-  
       return allQuestions;
     } catch (error) {
       throw new Error(`Ошибка при получении вопросов марафона: ${error.message}`);
     }
   }
-  
+
+  async addExtraQuestionsToMarathon(exam, category) {
+    try {
+      if (exam.mistakes >= 3) {
+        return;
+      }
+
+      const allTickets = await Ticket.find();
+      let availableQuestions = [];
+
+      for (const ticket of allTickets) {
+        const newQuestions = ticket.questions.filter(q =>
+          q.category === category &&
+          !exam.questions.some(eq => eq.questionId.text === q.text) &&
+          !exam.extraQuestions?.some(eq => eq.questionId.toString() === q.text)
+        );
+        availableQuestions = availableQuestions.concat(newQuestions);
+      }
+
+      const selectedQuestions = [];
+      const seenTexts = new Set();
+      for (const q of availableQuestions) {
+        if (!seenTexts.has(q.text) && selectedQuestions.length < 5) {
+          seenTexts.add(q.text);
+          selectedQuestions.push(q);
+        }
+      }
+
+      if (selectedQuestions.length === 0) {
+        return;
+      }
+
+      const tempQuestions = await TempQuestion.insertMany(selectedQuestions.map(q => ({
+        text: q.text,
+        options: q.options,
+        category: q.category,
+        hint: q.hint || null,
+        imageUrl: q.imageUrl || null
+      })));
+
+      const newExtraQuestions = tempQuestions.map((q) => ({
+        questionId: q._id,
+        userAnswer: null,
+        isCorrect: null
+      }));
+      if (!exam.extraQuestions) {
+        exam.extraQuestions = [];
+      }
+      exam.extraQuestions.push(...newExtraQuestions);
+
+      await exam.save();
+    } catch (error) {
+      console.error(`Ошибка при добавлении дополнительных вопросов в марафон: ${error.message}`);
+      throw new ApiError(500, `Ошибка при добавлении дополнительных вопросов: ${error.message}`);
+    }
+  }
+
   async processMarathonAnswer(examId, questionIndex, userAnswer) {
     try {
       const marathonExam = await MarathonExam.findById(examId);
       if (!marathonExam) {
-        throw new Error('Марафонский экзамен не найден');
+        throw new ApiError(404, 'Марафонский экзамен не найден');
       }
-  
+
       if (!marathonExam.questions || marathonExam.questions.length === 0) {
-        throw new Error('Вопросы марафона не найдены');
+        throw new ApiError(400, 'Вопросы марафона не найдены');
       }
-  
+
+      if (questionIndex < 0 || questionIndex >= marathonExam.questions.length) {
+        throw new ApiError(400, `Неверный индекс вопроса: ${questionIndex}`);
+      }
+
+      const question = marathonExam.questions[questionIndex];
+      if (question.userAnswer !== null) {
+        throw new ApiError(400, 'На этот вопрос уже дан ответ');
+      }
+
       const ticket = await Ticket.findOne({
-        'questions._id': marathonExam.questions[questionIndex].questionId._id
+        'questions._id': question.questionId._id
       });
       if (!ticket) {
-        throw new Error('Билет не найден');
+        throw new ApiError(404, 'Билет не найден');
       }
-  
+
       const questionData = ticket.questions.find(
-        q => q._id.toString() === marathonExam.questions[questionIndex].questionId._id.toString()
+        q => q._id.toString() === question.questionId._id.toString()
       );
       if (!questionData) {
-        throw new Error('Вопрос не найден');
+        throw new ApiError(404, 'Вопрос не найден в билете');
       }
-  
+
+      if (!questionData.options || questionData.options.length === 0) {
+        throw new ApiError(400, `Вопрос не содержит вариантов ответа`);
+      }
+
       const correctAnswer = questionData.options.findIndex(opt => opt.isCorrect);
+      if (correctAnswer === -1) {
+        throw new ApiError(400, `Вопрос не имеет правильного ответа`);
+      }
+
+      if (userAnswer < 0 || userAnswer >= questionData.options.length) {
+        throw new ApiError(400, `Неверный ответ: ${userAnswer} (доступно вариантов: ${questionData.options.length})`);
+      }
+
       const selectedOptionText = questionData.options[userAnswer]?.text || 'Неизвестно';
       const correctOptionText = questionData.options[correctAnswer]?.text || 'Неизвестно';
-  
-      const question = marathonExam.questions[questionIndex];
+
       question.userAnswer = userAnswer;
       question.isCorrect = userAnswer === correctAnswer;
-  
+
       marathonExam.answeredQuestions.push({
         questionId: question.questionId._id.toString(),
         selectedOption: selectedOptionText,
@@ -66,9 +137,15 @@ class ExamService {
         hint: questionData.hint || null,
         imageUrl: questionData.imageUrl || null
       });
-  
+
+      const user = await User.findById(marathonExam.userId);
+      if (!user) {
+        throw new ApiError(404, 'Пользователь не найден');
+      }
+
       if (!question.isCorrect) {
         marathonExam.mistakes += 1;
+        user.stats.mistakes += 1;
         marathonExam.mistakesDetails.push({
           questionId: question.questionId._id.toString(),
           questionText: questionData.text,
@@ -77,34 +154,235 @@ class ExamService {
           hint: questionData.hint || null,
           imageUrl: questionData.imageUrl || null
         });
-  
+
         if (marathonExam.mistakes < 3) {
           await this.addExtraQuestionsToMarathon(marathonExam, questionData.category);
         }
       }
-  
+
       marathonExam.completedQuestions += 1;
-  
-      const totalQuestions = marathonExam.questions.length + marathonExam.extraQuestions.length;
+
+      const totalQuestions = marathonExam.questions.length;
       if (marathonExam.completedQuestions >= totalQuestions) {
         marathonExam.status = 'completed';
         marathonExam.completedAt = new Date();
+        const timeSpent = Math.floor((marathonExam.completedAt.getTime() - marathonExam.startTime.getTime()) / 1000);
+        user.stats.totalTimeSpent += timeSpent;
       }
-  
+
       await marathonExam.save();
+      await user.save();
       return marathonExam;
     } catch (error) {
-      throw new Error(`Ошибка при обработке ответа марафона: ${error.message}`);
+      console.error(`Ошибка в processMarathonAnswer (examId: ${examId}, questionIndex: ${questionIndex}, userAnswer: ${userAnswer}):`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при обработке ответа марафона: ${error.message}`);
     }
   }
-  // Создать марафонский экзамен
+
+  async getUnansweredQuestions(examId) {
+    try {
+      const marathonExam = await MarathonExam.findById(examId);
+      if (!marathonExam) {
+        throw new ApiError(404, 'Марафонский экзамен не найден');
+      }
+
+      const unansweredQuestions = marathonExam.questions.filter(q => q.userAnswer === null);
+      return unansweredQuestions;
+    } catch (error) {
+      throw new ApiError(500, `Ошибка при получении неотвеченных вопросов: ${error.message}`);
+    }
+  }
+
+  async processUnansweredQuestionAnswer(examId, questionIndex, userAnswer) {
+    try {
+      const marathonExam = await MarathonExam.findById(examId);
+      if (!marathonExam) {
+        throw new ApiError(404, 'Марафонский экзамен не найден');
+      }
+
+      const unansweredQuestions = marathonExam.questions.filter(q => q.userAnswer === null);
+      if (!unansweredQuestions || unansweredQuestions.length === 0) {
+        throw new ApiError(400, 'Неотвеченные вопросы не найдены');
+      }
+
+      if (questionIndex < 0 || questionIndex >= unansweredQuestions.length) {
+        throw new ApiError(400, `Неверный индекс вопроса: ${questionIndex}`);
+      }
+
+      const question = unansweredQuestions[questionIndex];
+      const originalQuestionIndex = marathonExam.questions.findIndex(
+        q => q.questionId._id.toString() === question.questionId._id.toString()
+      );
+
+      if (originalQuestionIndex === -1) {
+        throw new ApiError(400, 'Вопрос не найден в исходном списке');
+      }
+
+      const ticket = await Ticket.findOne({
+        'questions._id': question.questionId._id
+      });
+      if (!ticket) {
+        throw new ApiError(404, 'Билет не найден');
+      }
+
+      const questionData = ticket.questions.find(
+        q => q._id.toString() === question.questionId._id.toString()
+      );
+      if (!questionData) {
+        throw new ApiError(404, 'Вопрос не найден в билете');
+      }
+
+      if (!questionData.options || questionData.options.length === 0) {
+        throw new ApiError(400, `Вопрос не содержит вариантов ответа`);
+      }
+
+      const correctAnswer = questionData.options.findIndex(opt => opt.isCorrect);
+      if (correctAnswer === -1) {
+        throw new ApiError(400, `Вопрос не имеет правильного ответа`);
+      }
+
+      if (userAnswer < 0 || userAnswer >= questionData.options.length) {
+        throw new ApiError(400, `Неверный ответ: ${userAnswer} (доступно вариантов: ${questionData.options.length})`);
+      }
+
+      const selectedOptionText = questionData.options[userAnswer]?.text || 'Неизвестно';
+      const correctOptionText = questionData.options[correctAnswer]?.text || 'Неизвестно';
+
+      marathonExam.questions[originalQuestionIndex].userAnswer = userAnswer;
+      marathonExam.questions[originalQuestionIndex].isCorrect = userAnswer === correctAnswer;
+
+      marathonExam.answeredQuestions.push({
+        questionId: question.questionId._id.toString(),
+        selectedOption: selectedOptionText,
+        isCorrect: userAnswer === correctAnswer,
+        hint: questionData.hint || null,
+        imageUrl: questionData.imageUrl || null
+      });
+
+      const user = await User.findById(marathonExam.userId);
+      if (!user) {
+        throw new ApiError(404, 'Пользователь не найден');
+      }
+
+      if (userAnswer !== correctAnswer) {
+        marathonExam.mistakes += 1;
+        user.stats.mistakes += 1;
+        marathonExam.mistakesDetails.push({
+          questionId: question.questionId._id.toString(),
+          questionText: questionData.text,
+          selectedOption: selectedOptionText,
+          correctOption: correctOptionText,
+          hint: questionData.hint || null,
+          imageUrl: questionData.imageUrl || null
+        });
+
+        if (marathonExam.mistakes < 3) {
+          await this.addExtraQuestionsToMarathon(marathonExam, questionData.category);
+        }
+      }
+
+      marathonExam.completedQuestions += 1;
+
+      const totalQuestions = marathonExam.questions.length;
+      if (marathonExam.completedQuestions >= totalQuestions) {
+        marathonExam.status = 'completed';
+        marathonExam.completedAt = new Date();
+        const timeSpent = Math.floor((marathonExam.completedAt.getTime() - marathonExam.startTime.getTime()) / 1000);
+        user.stats.totalTimeSpent += timeSpent;
+      }
+
+      await marathonExam.save();
+      await user.save();
+      return marathonExam;
+    } catch (error) {
+      console.error(`Ошибка в processUnansweredQuestionAnswer (examId: ${examId}, questionIndex: ${questionIndex}, userAnswer: ${userAnswer}):`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при обработке ответа на неотвеченный вопрос: ${error.message}`);
+    }
+  }
+
+  async getUnansweredResults(examId) {
+    try {
+      const marathonExam = await MarathonExam.findById(examId);
+      if (!marathonExam) {
+        throw new ApiError(404, 'Марафонский экзамен не найден');
+      }
+
+      const tickets = await Ticket.find().lean();
+      if (!tickets.length) {
+        throw new ApiError(404, 'Билеты не найдены');
+      }
+
+      const unansweredQuestions = marathonExam.questions.filter(q => q.userAnswer === null);
+      const answeredQuestions = marathonExam.questions.filter(q => q.userAnswer !== null);
+
+      const questionsWithDetails = answeredQuestions.map(q => {
+        const ticket = tickets.find(t => t.questions.some(tq => tq._id.toString() === q.questionId._id.toString()));
+        const ticketQuestion = ticket?.questions.find(tq => tq._id.toString() === q.questionId._id.toString());
+        return {
+          questionId: {
+            _id: q.questionId._id,
+            text: ticketQuestion?.text || q.questionId.text || 'Вопрос не найден',
+            options: (ticketQuestion?.options || q.questionId.options || []).map(opt => ({
+              text: opt.text
+            })),
+            hint: ticketQuestion?.hint || q.questionId.hint || null,
+            imageUrl: ticketQuestion?.imageUrl || q.questionId.imageUrl || null,
+            videoUrl: ticketQuestion?.videoUrl || null,
+            category: ticketQuestion?.category || q.questionId.category || null,
+            questionNumber: ticketQuestion?.questionNumber || q.questionId.questionNumber || null
+          },
+          userAnswer: q.userAnswer,
+          isCorrect: q.isCorrect
+        };
+      });
+
+      const totalQuestions = marathonExam.questions.length;
+      const correctAnswers = answeredQuestions.filter(q => q.isCorrect).length;
+      const timeSpent = marathonExam.startTime
+        ? marathonExam.completedAt
+          ? Math.floor((marathonExam.completedAt.getTime() - marathonExam.startTime.getTime()) / 1000)
+          : Math.floor((Date.now() - marathonExam.startTime.getTime()) / 1000)
+        : 0;
+
+      return {
+        exam: {
+          ...marathonExam.toObject(),
+          questions: questionsWithDetails,
+          answeredQuestions: marathonExam.answeredQuestions,
+          mistakesDetails: marathonExam.mistakesDetails
+        },
+        statistics: {
+          totalQuestions,
+          unansweredQuestions: unansweredQuestions.length,
+          correctAnswers,
+          mistakes: marathonExam.mistakes,
+          timeSpent,
+          status: marathonExam.status,
+          completedAt: marathonExam.completedAt
+        }
+      };
+    } catch (error) {
+      console.error(`Ошибка в getUnansweredResults (examId: ${examId}):`, error);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при получении результатов по неотвеченным вопросам: ${error.message}`);
+    }
+  }
+
   async createMarathonExam(userId) {
     try {
       const questions = await this.getMarathonQuestions();
       if (questions.length === 0) {
-        throw new Error('Вопросы для марафона не найдены');
+        throw new ApiError(404, 'Вопросы для марафона не найдены');
       }
-  
+
       const existingMarathon = await MarathonExam.findOne({ userId, status: 'in_progress' });
       if (existingMarathon) {
         return {
@@ -112,8 +390,7 @@ class ExamService {
           questions
         };
       }
-  
-      // Формируем вопросы для марафона
+
       const examQuestions = questions.map(question => ({
         questionId: {
           _id: question._id,
@@ -127,65 +404,60 @@ class ExamService {
         userAnswer: null,
         isCorrect: null
       }));
-  
+
       const marathonExam = new MarathonExam({
         userId,
-        questions: examQuestions, // Сохраняем вопросы
+        questions: examQuestions,
         mistakes: 0,
         status: 'in_progress',
         startTime: new Date(),
         completedQuestions: 0
       });
-  
+
       await marathonExam.save();
       return {
         exam: marathonExam,
         questions
       };
     } catch (error) {
-      throw new Error(`Ошибка при создании марафонского экзамена: ${error.message}`);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при создании марафонского экзамена: ${error.message}`);
     }
   }
 
-
   async processAnswer(examId, questionIndex, userAnswer) {
     try {
-      // Проверяем examId
       if (!examId) {
         throw new ApiError(400, 'examId не указан');
       }
-  
-      // Находим экзамен
+
       const exam = await Exam.findById(examId);
       if (!exam) {
         throw new ApiError(404, `Экзамен с ID ${examId} не найден`);
       }
-  
-      // Проверяем ticketNumber
+
       if (!exam.ticketNumber) {
         throw new ApiError(400, `ticketNumber отсутствует в экзамене (examId: ${examId})`);
       }
-  
-      // Загружаем билет
+
       const ticket = await Ticket.findOne({ number: exam.ticketNumber });
       if (!ticket) {
         throw new ApiError(404, `Билет с номером ${exam.ticketNumber} не найден`);
       }
-  
-      // Загружаем дополнительные вопросы
+
       const extraQuestions = await ExtraQuestion.find({
         _id: { $in: exam.extraQuestions.map(q => q.questionId) },
       });
-  
-      // Проверяем startTime и timeLimit
+
       if (!exam.startTime) {
         throw new ApiError(400, `startTime отсутствует в экзамене (examId: ${examId})`);
       }
       if (!exam.timeLimit) {
         throw new ApiError(400, `timeLimit отсутствует в экзамене (examId: ${examId})`);
       }
-  
-      // Проверяем время
+
       const elapsedTime = Date.now() - exam.startTime.getTime();
       if (elapsedTime > exam.timeLimit + (exam.extraTime || 0)) {
         exam.status = 'failed';
@@ -193,13 +465,11 @@ class ExamService {
         await exam.save();
         throw new ApiError(400, 'Время экзамена истекло');
       }
-  
-      // Проверяем questionIndex
+
       if (questionIndex < 0 || questionIndex >= exam.questions.length + exam.extraQuestions.length) {
         throw new ApiError(400, `Неверный questionIndex: ${questionIndex} (доступно вопросов: ${exam.questions.length + exam.extraQuestions.length})`);
       }
-  
-      // Обрабатываем вопрос
+
       let question;
       let questionData;
       if (questionIndex < exam.questions.length) {
@@ -216,38 +486,43 @@ class ExamService {
           q => q._id.toString() === question.questionId.toString()
         );
       }
-  
+
       if (!questionData) {
         throw new ApiError(404, `Вопрос с ID ${question.questionId._id || question.questionId} не найден в билете с номером ${exam.ticketNumber} или дополнительных вопросах`);
       }
-  
-      // Проверяем options
+
+      if (question.userAnswer !== null) {
+        throw new ApiError(400, 'На этот вопрос уже дан ответ');
+      }
+
       if (!questionData.options || questionData.options.length === 0) {
         throw new ApiError(400, `Вопрос с ID ${question.questionId._id || question.questionId} не содержит вариантов ответа`);
       }
-  
-      // Находим правильный ответ
+
       const correctAnswer = questionData.options.findIndex(opt => opt.isCorrect);
       if (correctAnswer === -1) {
         throw new ApiError(400, `Вопрос с ID ${question.questionId._id || question.questionId} не имеет правильного ответа`);
       }
-  
-      // Проверяем userAnswer
+
       if (userAnswer < 0 || userAnswer >= questionData.options.length) {
         throw new ApiError(400, `Неверный userAnswer: ${userAnswer} (доступно вариантов: ${questionData.options.length})`);
       }
-  
+
       const selectedOptionText = questionData.options[userAnswer]?.text || 'Неизвестно';
       const correctOptionText = questionData.options[correctAnswer]?.text || 'Неизвестно';
-  
-      // Обновляем ответ
+
       question.userAnswer = userAnswer;
       question.isCorrect = userAnswer === correctAnswer;
-  
+
+      const user = await User.findById(exam.userId);
+      if (!user) {
+        throw new ApiError(404, 'Пользователь не найден');
+      }
+
       if (!question.isCorrect) {
         exam.mistakes = (exam.mistakes || 0) + 1;
-  
-        // Добавляем информацию об ошибке
+        user.stats.mistakes += 1;
+
         exam.mistakesDetails.push({
           questionId: (question.questionId._id || question.questionId).toString(),
           questionText: questionData.text,
@@ -256,30 +531,36 @@ class ExamService {
           hint: questionData.hint || null,
           imageUrl: questionData.imageUrl || null,
         });
-  
-        // Проверяем количество ошибок
+
         if (exam.mistakes >= 3) {
           exam.status = 'failed';
           exam.completedAt = new Date();
+          const timeSpent = Math.floor((exam.completedAt.getTime() - exam.startTime.getTime()) / 1000);
+          user.stats.totalTimeSpent += timeSpent;
           await exam.save();
+          await user.save();
           return exam;
         }
-  
-        // Добавляем дополнительные вопросы
+
         await this.addExtraQuestions(exam, questionData.category);
       }
-  
-      // Проверяем завершение экзамена
+
       const allAnswered =
         exam.questions.every(q => q.userAnswer !== null) &&
         exam.extraQuestions.every(q => q.userAnswer !== null);
-  
+
       if (allAnswered) {
         exam.status = exam.mistakes < 3 ? 'passed' : 'failed';
         exam.completedAt = new Date();
+        const timeSpent = Math.floor((exam.completedAt.getTime() - exam.startTime.getTime()) / 1000);
+        user.stats.totalTimeSpent += timeSpent;
+        if (exam.status === 'passed') {
+          user.stats.ticketsCompleted += 1;
+        }
       }
-  
+
       await exam.save();
+      await user.save();
       return exam;
     } catch (error) {
       console.error(`Ошибка в processAnswer (examId: ${examId}, questionIndex: ${questionIndex}, userAnswer: ${userAnswer}):`, error);
@@ -300,26 +581,26 @@ class ExamService {
           progress: 0,
           correctAnswers: 0,
           mistakes: 0,
-          mistakesDetails: []
+          mistakesDetails: [],
+          timeSpent: 0,
+          formattedTimeSpent: '0 мин 0 сек'
         };
       }
-  
+
       const totalQuestions = marathonExam.questions.length;
       const correctAnswers = marathonExam.questions.filter(q => q.isCorrect).length;
       const progress = Math.round((correctAnswers / totalQuestions) * 100);
-  
-      // Вычисляем timeSpent
+
       const timeSpent = marathonExam.startTime
         ? marathonExam.completedAt
-          ? Math.floor((marathonExam.completedAt.getTime() - marathonExam.startTime.getTime()) / 1000) // Время в секундах для завершённых
-          : Math.floor((Date.now() - marathonExam.startTime.getTime()) / 1000) // Время в секундах для незавершённых
+          ? Math.floor((marathonExam.completedAt.getTime() - marathonExam.startTime.getTime()) / 1000)
+          : Math.floor((Date.now() - marathonExam.startTime.getTime()) / 1000)
         : 0;
-  
-      // Форматируем время
+
       const minutes = Math.floor(timeSpent / 60);
       const seconds = timeSpent % 60;
       const formattedTimeSpent = `${minutes} мин ${seconds} сек`;
-  
+
       return {
         status: marathonExam.status,
         totalQuestions,
@@ -327,18 +608,18 @@ class ExamService {
         correctAnswers,
         mistakes: marathonExam.mistakes,
         mistakesDetails: marathonExam.mistakesDetails,
-        timeSpent, // Время в секундах
-        formattedTimeSpent, // Форматированное время
-        completedAt: marathonExam.completedAt // Время завершения
+        timeSpent,
+        formattedTimeSpent,
+        completedAt: marathonExam.completedAt
       };
     } catch (error) {
       throw new Error(`Ошибка при получении прогресса марафона: ${error.message}`);
     }
   }
+
   async getAnswers() {
     try {
       const tickets = await Ticket.find().lean();
-
       const allQuestions = tickets.flatMap(ticket =>
         ticket.questions.map(question => ({
           questionText: question.text,
@@ -347,45 +628,35 @@ class ExamService {
           correctAnswer: question.options.find(opt => opt.isCorrect)?.text || null
         }))
       );
-
       return allQuestions;
     } catch (error) {
       throw new Error(`Ошибка при получении вопросов: ${error.message}`);
     }
   }
+
   async selectTicket(userId) {
     try {
-      // Проверяем, что userId передан
       if (!userId) {
         throw new ApiError(400, 'ID пользователя обязателен');
       }
-
-      // Получаем все билеты
       const tickets = await Ticket.find({}, 'number');
       if (tickets.length === 0) {
         throw new ApiError(404, 'В базе данных нет билетов');
       }
-
-      // Выбираем случайный билет
       const randomIndex = Math.floor(Math.random() * tickets.length);
       const ticketNumber = tickets[randomIndex].number;
-
-      // Находим последний завершенный экзамен пользователя
       const lastExam = await Exam.findOne({
         userId,
-        status: { $in: ['passed', 'failed'] }, // Учитываем только завершенные экзамены
+        status: { $in: ['passed', 'failed'] },
       })
-        .sort({ completedAt: -1 }) // Сортируем по времени завершения, чтобы взять последний
+        .sort({ completedAt: -1 })
         .lean();
-
-      // Формируем результат последнего экзамена (если он есть)
       let lastExamResult = null;
       if (lastExam) {
         const totalQuestions = lastExam.questions.length + lastExam.extraQuestions.length;
         const correctAnswers =
           lastExam.questions.filter(q => q.isCorrect).length +
           lastExam.extraQuestions.filter(q => q.isCorrect).length;
-
         lastExamResult = {
           examId: lastExam._id.toString(),
           ticketNumber: lastExam.ticketNumber,
@@ -395,13 +666,11 @@ class ExamService {
             correctAnswers,
             mistakes: lastExam.mistakes || 0,
             timeSpent: lastExam.completedAt
-              ? Math.floor((lastExam.completedAt.getTime() - lastExam.startTime.getTime()) / 1000) * 1000 // Время в миллисекундах
+              ? Math.floor((lastExam.completedAt.getTime() - lastExam.startTime.getTime()) / 1000) * 1000
               : 0,
           },
         };
       }
-
-      // Возвращаем результат в формате, указанном в Swagger
       return {
         ticketNumber,
         lastExamResult,
@@ -419,16 +688,15 @@ class ExamService {
     try {
       const ticket = await Ticket.findOne({ number: ticketNumber });
       if (!ticket) {
-        throw new Error('Билет не найден');
+        throw new ApiError(404, 'Билет не найден');
       }
-  
-      // Формируем вопросы с полными данными
+
       const examQuestions = ticket.questions.map((question) => ({
         questionId: {
           _id: question._id,
           text: question.text,
           options: question.options.map(opt => ({
-            text: opt.text // Исключаем isCorrect для безопасности
+            text: opt.text
           })),
           hint: question.hint || null,
           imageUrl: question.imageUrl || null,
@@ -438,7 +706,7 @@ class ExamService {
         userAnswer: null,
         isCorrect: null
       }));
-  
+
       const exam = new Exam({
         userId,
         ticketNumber,
@@ -449,11 +717,14 @@ class ExamService {
         startTime: new Date(),
         timeLimit: 20 * 60 * 1000
       });
-  
+
       await exam.save();
       return exam;
     } catch (error) {
-      throw new Error(`Ошибка при создании экзамена: ${error.message}`);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при создании экзамена: ${error.message}`);
     }
   }
 
@@ -462,12 +733,10 @@ class ExamService {
       if (exam.mistakes >= 3) {
         return;
       }
-  
-      // Получаем все вопросы из билетов
+
       const allTickets = await Ticket.find();
       let availableQuestions = [];
-  
-      // Собираем все вопросы из билетов, исключая уже использованные
+
       for (const ticket of allTickets) {
         const newQuestions = ticket.questions.filter(q => 
           q.category === category &&
@@ -476,10 +745,7 @@ class ExamService {
         );
         availableQuestions = availableQuestions.concat(newQuestions);
       }
-  
-      console.log(`Найдено доступных вопросов по категории "${category}": ${availableQuestions.length}`);
-  
-      // Выбираем 5 уникальных вопросов
+
       const selectedQuestions = [];
       const seenTexts = new Set();
       for (const q of availableQuestions) {
@@ -488,13 +754,11 @@ class ExamService {
           selectedQuestions.push(q);
         }
       }
-  
+
       if (selectedQuestions.length === 0) {
-        console.log('Не удалось найти дополнительные вопросы в билетах.');
         return;
       }
-  
-      // Сохраняем вопросы как временные документы в коллекции TempQuestion
+
       const tempQuestions = await TempQuestion.insertMany(selectedQuestions.map(q => ({
         text: q.text,
         options: q.options,
@@ -502,22 +766,20 @@ class ExamService {
         hint: q.hint || null,
         imageUrl: q.imageUrl || null
       })));
-  
-      // Добавляем ссылки на временные вопросы в extraQuestions
-      const newExtraQuestions = tempQuestions.map((q, index) => ({
-        questionId: q._id, // Сохраняем только ObjectId
+
+      const newExtraQuestions = tempQuestions.map((q) => ({
+        questionId: q._id,
         userAnswer: null,
         isCorrect: null
       }));
       exam.extraQuestions.push(...newExtraQuestions);
-  
+
       exam.extraTime = (exam.extraTime || 0) + 5 * 60 * 1000;
-  
+
       await exam.save();
-      console.log(`После сохранения: Добавлено ${newExtraQuestions.length} вопросов. Всего в extraQuestions: ${exam.extraQuestions.length}`);
     } catch (error) {
       console.error(`Ошибка при добавлении дополнительных вопросов: ${error.message}`);
-      throw new Error(`Ошибка при добавлении дополнительных вопросов: ${error.message}`);
+      throw new ApiError(500, `Ошибка при добавлении дополнительных вопросов: ${error.message}`);
     }
   }
 
@@ -525,19 +787,18 @@ class ExamService {
     try {
       const exam = await Exam.findById(examId);
       if (!exam) {
-        throw new Error('Экзамен не найден');
+        throw new ApiError(404, 'Экзамен не найден');
       }
-  
+
       const ticket = await Ticket.findOne({ number: exam.ticketNumber });
       if (!ticket) {
-        throw new Error('Билет не найден');
+        throw new ApiError(404, 'Билет не найден');
       }
-  
+
       const extraQuestions = await ExtraQuestion.find({
         _id: { $in: exam.extraQuestions.map(q => q.questionId) },
       }).lean();
-  
-      // Map questions with all details from the Ticket model
+
       const questionsWithDetails = exam.questions.map(q => {
         const ticketQuestion = ticket.questions.find(tq => tq._id.toString() === q.questionId._id);
         return {
@@ -556,8 +817,7 @@ class ExamService {
           isCorrect: q.isCorrect,
         };
       });
-  
-      // Map extra questions with details
+
       const extraQuestionsWithDetails = exam.extraQuestions.map(q => {
         const extraQuestion = extraQuestions.find(eq => eq._id.toString() === q.questionId.toString());
         return {
@@ -576,19 +836,18 @@ class ExamService {
           isCorrect: q.isCorrect,
         };
       });
-  
+
       const totalQuestions = exam.questions.length + exam.extraQuestions.length;
       const correctAnswers =
         exam.questions.filter(q => q.isCorrect).length +
         exam.extraQuestions.filter(q => q.isCorrect).length;
-  
-      // Вычисляем timeSpent
+
       const timeSpent = exam.startTime
         ? exam.completedAt
-          ? Math.floor((exam.completedAt.getTime() - exam.startTime.getTime()) / 1000) // Время в секундах для завершённых
-          : Math.floor((Date.now() - exam.startTime.getTime()) / 1000) // Время в секундах для незавершённых
+          ? Math.floor((exam.completedAt.getTime() - exam.startTime.getTime()) / 1000)
+          : Math.floor((Date.now() - exam.startTime.getTime()) / 1000)
         : 0;
-  
+
       return {
         exam: {
           ...exam.toObject(),
@@ -600,16 +859,19 @@ class ExamService {
           totalQuestions,
           correctAnswers,
           mistakes: exam.mistakes,
-          timeSpent, // Теперь в секундах
+          timeSpent,
           status: exam.status,
-          completedAt: exam.completedAt // Добавляем время завершения
+          completedAt: exam.completedAt
         },
       };
     } catch (error) {
-      throw new Error(`Ошибка при получении результатов: ${error.message}`);
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при получении результатов: ${error.message}`);
     }
   }
- 
+
   async getMarathonResults(examId) {
     try {
       const marathonExam = await MarathonExam.findById(examId);
@@ -617,13 +879,11 @@ class ExamService {
         throw new ApiError(404, 'Марафонский экзамен не найден');
       }
 
-      // Получаем все билеты для поиска вопросов
       const tickets = await Ticket.find().lean();
       if (!tickets.length) {
         throw new ApiError(404, 'Билеты не найдены');
       }
 
-      // Формируем подробные данные о вопросах
       const questionsWithDetails = marathonExam.questions.map(q => {
         const ticket = tickets.find(t => t.questions.some(tq => tq._id.toString() === q.questionId._id.toString()));
         const ticketQuestion = ticket?.questions.find(tq => tq._id.toString() === q.questionId._id.toString());
@@ -645,7 +905,6 @@ class ExamService {
         };
       });
 
-      // Вычисляем статистику
       const totalQuestions = marathonExam.questions.length;
       const correctAnswers = marathonExam.questions.filter(q => q.isCorrect).length;
       const timeSpent = marathonExam.startTime
@@ -678,10 +937,10 @@ class ExamService {
       throw new ApiError(500, `Ошибка при получении результатов марафона: ${error.message}`);
     }
   }
+
   async generateShareTemplate(examId, isPremium) {
     try {
       const { exam, statistics } = await this.getExamResults(examId);
-
       if (isPremium) {
         return {
           type: 'image',
@@ -690,7 +949,7 @@ class ExamService {
             score: statistics.correctAnswers,
             total: statistics.totalQuestions,
             mistakes: statistics.mistakes,
-            time: Math.floor(statistics.timeSpent / 1000 / 60)
+            time: Math.floor(statistics.timeSpent / 60)
           },
           shareOptions: ['story', 'post']
         };
@@ -702,9 +961,129 @@ class ExamService {
         };
       }
     } catch (error) {
-      throw new Error(`Ошибка при генерации шаблона: ${error.message}`);
+      throw new ApiError(500, `Ошибка при генерации шаблона: ${error.message}`);
+    }
+  }
+
+  async createRandomQuestionSession(userId, questions) {
+    try {
+      const session = new mongoose.model('RandomQuestionSession')({
+        userId,
+        questions: questions.map(q => ({
+          questionId: q._id,
+          ticketNumber: q.ticketNumber,
+          text: q.text,
+          options: q.options,
+          category: q.category,
+          hint: q.hint || null,
+          imageUrl: q.imageUrl || null
+        })),
+        createdAt: new Date()
+      });
+      await session.save();
+      return session._id.toString();
+    } catch (error) {
+      throw new ApiError(500, `Ошибка при создании сессии случайных вопросов: ${error.message}`);
+    }
+  }
+
+  async processRandomQuestionAnswer(userId, sessionId, questionId, userAnswer) {
+    try {
+      const session = await mongoose.model('RandomQuestionSession').findById(sessionId);
+      if (!session || session.userId !== userId) {
+        throw new ApiError(404, 'Сессия не найдена или не принадлежит пользователю');
+      }
+
+      const question = session.questions.find(q => q.questionId.toString() === questionId);
+      if (!question) {
+        throw new ApiError(404, 'Вопрос не найден в сессии');
+      }
+
+      const ticket = await Ticket.findOne({ number: question.ticketNumber });
+      if (!ticket) {
+        throw new ApiError(404, 'Билет не найден');
+      }
+
+      const questionData = ticket.questions.find(q => q._id.toString() === questionId);
+      if (!questionData) {
+        throw new ApiError(404, 'Вопрос не найден в билете');
+      }
+
+      const correctAnswer = questionData.options.findIndex(opt => opt.isCorrect);
+      const isCorrect = userAnswer === correctAnswer;
+      const selectedOptionText = questionData.options[userAnswer]?.text || 'Неизвестно';
+      const correctOptionText = questionData.options[correctAnswer]?.text || 'Неизвестно';
+
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new ApiError(404, 'Пользователь не найден');
+      }
+
+      let ticketProgress = user.ticketsProgress.find(tp => tp.ticketNumber === question.ticketNumber);
+      if (!ticketProgress) {
+        ticketProgress = {
+          ticketNumber: question.ticketNumber,
+          isCompleted: false,
+          mistakes: 0,
+          correctAnswers: 0,
+          totalQuestions: ticket.questions.length,
+          startedAt: new Date(),
+          answeredQuestions: [],
+          mistakesDetails: []
+        };
+        user.ticketsProgress.push(ticketProgress);
+      }
+
+      if (ticketProgress.answeredQuestions.some(aq => aq.questionId === questionId)) {
+        throw new ApiError(400, 'На этот вопрос уже дан ответ в рамках этого билета');
+      }
+
+      ticketProgress.answeredQuestions.push({
+        questionId,
+        selectedOption: selectedOptionText,
+        isCorrect,
+        hint: questionData.hint || null,
+        imageUrl: questionData.imageUrl || null
+      });
+
+      if (isCorrect) {
+        ticketProgress.correctAnswers += 1;
+      } else {
+        ticketProgress.mistakes += 1;
+        user.stats.mistakes += 1;
+        ticketProgress.mistakesDetails.push({
+          questionId,
+          questionText: questionData.text,
+          selectedOption: selectedOptionText,
+          correctOption: correctOptionText,
+          hint: questionData.hint || null,
+          imageUrl: questionData.imageUrl || null
+        });
+      }
+
+      if (ticketProgress.answeredQuestions.length === ticketProgress.totalQuestions) {
+        ticketProgress.isCompleted = true;
+        ticketProgress.completedAt = new Date();
+        const timeSpent = Math.floor((ticketProgress.completedAt.getTime() - ticketProgress.startedAt.getTime()) / 1000);
+        user.stats.totalTimeSpent += timeSpent;
+        if (ticketProgress.mistakes < 3) {
+          user.stats.ticketsCompleted += 1;
+        }
+      }
+
+      await user.save();
+      return {
+        questionId,
+        isCorrect,
+        correctOption: correctOptionText
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Ошибка при обработке ответа на случайный вопрос: ${error.message}`);
     }
   }
 }
 
-module.exports = new ExamService(); 
+module.exports = new ExamService();

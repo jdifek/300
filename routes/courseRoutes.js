@@ -90,7 +90,64 @@ const { isAuthenticated } = require('../middleware/auth');
  *         description: Ошибка сервера
  */
 router.get('/', isAuthenticated, courseController.getCourse);
-
+/**
+ * @swagger
+ * /api/courses/{courseId}/last-lesson:
+ *   get:
+ *     summary: Получение последнего просмотренного урока
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID курса
+ *     responses:
+ *       200:
+ *         description: Данные последнего просмотренного урока
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: ID урока
+ *                 title:
+ *                   type: string
+ *                   description: Название урока
+ *                 description:
+ *                   type: string
+ *                   description: Описание урока
+ *                 videoUrl:
+ *                   type: string
+ *                   description: URL видео урока
+ *                 order:
+ *                   type: integer
+ *                   description: Порядок урока в курсе
+ *                 progress:
+ *                   type: object
+ *                   properties:
+ *                     lessonId:
+ *                       type: string
+ *                       description: ID урока
+ *                     isCompleted:
+ *                       type: boolean
+ *                       description: Завершён ли урок
+ *                     isWatched:
+ *                       type: boolean
+ *                       description: Просмотрен ли урок
+ *       404:
+ *         description: Курс или урок не найден
+ *       401:
+ *         description: Не авторизован
+ *       500:
+ *         description: Ошибка сервера
+ */
+router.get('/:courseId/last-lesson', isAuthenticated, courseController.getLastLesson);
 /**
  * @swagger
  * /api/courses/{courseId}:

@@ -4,6 +4,52 @@ const fs = require('fs');
 const Course = require('../models/Course');
 const User = require('../models/User');
 const mongoose = require('mongoose');
+const getLastLesson = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const course = await Course.findById(req.params.courseId);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const courseProgress = user.coursesProgress.find(cp => cp.courseId.equals(course._id));
+    if (!courseProgress || !courseProgress.lastStudiedLesson) {
+      // Если нет прогресса или последнего урока, возвращаем первый урок курса
+      const firstLesson = course.lessons.sort((a, b) => a.order - b.order)[0];
+      if (!firstLesson) return res.status(404).json({ message: 'No lessons available' });
+
+      const lessonProgress = courseProgress?.lessons.find(lp => lp.lessonId.equals(firstLesson._id)) || {
+        lessonId: firstLesson._id,
+        isCompleted: false,
+        homeworkSubmitted: false,
+        homeworkData: null,
+        isWatched: false
+      };
+
+      return res.json({
+        ...firstLesson.toJSON(),
+        progress: lessonProgress
+      });
+    }
+
+    const lastLesson = course.lessons.id(courseProgress.lastStudiedLesson);
+    if (!lastLesson) return res.status(404).json({ message: 'Last lesson not found' });
+
+    const lessonProgress = courseProgress.lessons.find(lp => lp.lessonId.equals(lastLesson._id)) || {
+      lessonId: lastLesson._id,
+      isCompleted: false,
+      homeworkSubmitted: false,
+      homeworkData: null,
+      isWatched: false
+    };
+
+    res.json({
+      ...lastLesson.toJSON(),
+      progress: lessonProgress
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const getCourseById = async (req, res) => {
   try {
     const { courseId } = req.params; // Получаем ID курса из параметров
@@ -349,4 +395,4 @@ const markLessonWatched = async (req, res) => {
   }
 };
 
-module.exports = { upload, updateLessonThumbnail, getCourse, getLesson, markLessonCompleted,markLessonWatched, submitHomework, getNextLesson, getPrevLesson,getCourseById };
+module.exports = { getLastLesson, upload, updateLessonThumbnail, getCourse, getLesson, markLessonCompleted,markLessonWatched, submitHomework, getNextLesson, getPrevLesson,getCourseById };
