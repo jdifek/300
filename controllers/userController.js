@@ -4,7 +4,7 @@ const SubscriptionHistory = require('../models/SubscriptionHistory');
 const jwt = require('jsonwebtoken');
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHANNEL_USERNAME = '@your_channel_username'; 
+const TELEGRAM_CHANNEL_USERNAME = '@proavtovrf'; 
 
 exports.checkChannelSubscription = async (req, res) => {
   try {
