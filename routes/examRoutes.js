@@ -3,7 +3,6 @@ const router = express.Router();
 const examController = require('../controllers/examController');
 const { validateExamStart, validateAnswer, validateExamId } = require('../middleware/examValidation');
 const { isAuthenticated } = require('../middleware/auth');
-const express = require('express');
 
 /**
  * @swagger
